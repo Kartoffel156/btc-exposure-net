@@ -120,3 +120,49 @@ def test_syn_no_btc_in_code():
     """El test end-to-end no menciona BTC en ningún path de código."""
     # Si llegamos aquí sin importar nada de BTC, el test pasa.
     pass
+
+
+@pytest.mark.integration
+def test_syn_benchmark_ladder(syn_env):
+    """Ejecuta la escalera completa N0–N3 sobre SYN y verifica resultados coherentes."""
+    import numpy as np
+
+    from btcx.assets.registry import load_asset as reg_load
+    from btcx.benchmarks.levels import make_benchmarks
+    from btcx.core.backtest import backtest
+    from btcx.core.types import AssetData, CostModel
+    from btcx.data.access import load_asset
+
+    settings, processed = syn_env
+    _build_syn(settings, processed)
+
+    spec = reg_load("SYN", settings)
+    af = load_asset(settings, "SYN", processed_root=str(processed))
+    ad = AssetData.from_frame(af, settings.costs.fin_spread_annual)
+
+    dev_start = pd.Timestamp(spec.periods.dev_start)
+    dev_end = pd.Timestamp(spec.periods.dev_end)
+    mid = dev_start + (dev_end - dev_start) / 2
+    md_dev = ad.slice(dev_start, dev_end)
+    train_pos = md_dev.close.loc[dev_start:mid].index
+
+    benchmarks = make_benchmarks(settings, spec)
+    costs = CostModel(buffer=settings.exposure.buffer, cash_yield=settings.costs.cash_yield)
+    panel = md_dev.as_panel()
+
+    w_min = settings.exposure.w_min
+    results = {}
+    for bname, rule in benchmarks.items():
+        fitted = rule.fit(md_dev, train_pos)
+        w = fitted.target(md_dev).fillna(w_min).clip(lower=0.0)
+        w_df = w.to_frame(name="SYN")
+        results[bname] = backtest(w_df, panel, costs)
+
+    # Verificar que se generaron los cuatro niveles
+    assert len(results) == 4, f"Se esperaban 4 benchmarks, se obtuvieron {len(results)}"
+
+    # Verificar que los retornos son series finitas
+    for name, res in results.items():
+        R = res.returns
+        assert R.notna().any(), f"{name}: todos los retornos son NaN"
+        assert np.isfinite(R.dropna().values).all(), f"{name}: retornos no finitos"

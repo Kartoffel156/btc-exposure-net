@@ -240,6 +240,67 @@ def data_verify(
 # ── rates ──────────────────────────────────────────────────────────────────────
 
 
+@report_app.command("benchmarks")
+def report_benchmarks(
+    asset: list[str] = typer.Option([], "--asset", help="ID del activo (repetible)."),
+    config: str | None = typer.Option(None, "--config"),
+    output_dir: str = typer.Option("reports", "--output-dir", help="Directorio de salida."),
+) -> None:
+    """Ejecuta benchmarks N0–N3 en el período dev y genera reporte Markdown + PNGs."""
+    import pandas as pd
+
+    from btcx.assets.registry import load_asset as reg_load_asset
+    from btcx.benchmarks.levels import make_benchmarks
+    from btcx.core.backtest import backtest
+    from btcx.core.types import AssetData, BacktestResult, CostModel
+    from btcx.data.access import load_asset
+    from btcx.reporting.markdown import render_report
+
+    settings = load_settings(*([Path(config)] if config else []))
+
+    if not asset:
+        typer.echo("Especifica al menos un --asset <ID>.", err=True)
+        raise typer.Exit(1) from None
+
+    out_base = Path(output_dir)
+    exp = settings.exposure
+    costs = CostModel(buffer=exp.buffer, cash_yield=settings.costs.cash_yield)
+
+    for aid in asset:
+        try:
+            spec = reg_load_asset(aid, settings)
+            typer.echo(f"→ Benchmarks para {aid}…")
+            af = load_asset(settings, aid)
+            ad = AssetData.from_frame(af, settings.costs.fin_spread_annual)
+
+            # Período dev solamente
+            dev_start = pd.Timestamp(spec.periods.dev_start)
+            dev_end = pd.Timestamp(spec.periods.dev_end)
+            # Período de entrenamiento: primera mitad del dev
+            mid = dev_start + (dev_end - dev_start) / 2
+            md_dev = ad.slice(dev_start, dev_end)
+
+            # Índice de entrenamiento: desde dev_start hasta la mitad del dev
+            train_pos = md_dev.close.loc[dev_start:mid].index
+
+            benchmarks = make_benchmarks(settings, spec)
+            # Ajustar y calcular exposiciones
+            bench_results: dict[str, BacktestResult] = {}
+            panel = md_dev.as_panel()
+            for bname, rule in benchmarks.items():
+                fitted = rule.fit(md_dev, train_pos)
+                w = fitted.target(md_dev).fillna(exp.w_min).clip(lower=0.0)
+                w_df = w.to_frame(name=aid)
+                bench_results[bname] = backtest(w_df, panel, costs)
+
+            rf = md_dev.rf
+            out_path = render_report(aid, bench_results, rf, settings, out_base / aid)
+            typer.echo(f"  ✓ Reporte: {out_path}")
+        except Exception as e:
+            typer.echo(f"  ✗ {aid}: {e}", err=True)
+            raise typer.Exit(1) from None
+
+
 @rates_app.command("build")
 def rates_build(
     rate: str = typer.Option(..., "--rate", help="ID de la tasa (ej. USD_TBILL_3M)."),
