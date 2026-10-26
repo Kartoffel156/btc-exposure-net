@@ -13,14 +13,21 @@ from btcx.data.access import AssetFrame, PanelFrame
 
 def _make_spec(asset_id: str, trade_bps: float = 5.0) -> AssetSpec:
     return AssetSpec(
-        id=asset_id, name=asset_id, asset_class="crypto", quote_currency="USD",
-        rate="FED", calendar="continuous",
+        id=asset_id,
+        name=asset_id,
+        asset_class="crypto",
+        quote_currency="USD",
+        rate="FED",
+        calendar="continuous",
         periods=AssetPeriods(
-            history_start="2020-01-01", dev_start="2020-06-01",
-            dev_end="2021-06-01", test_start="2021-07-01",
+            history_start="2020-01-01",
+            dev_start="2020-06-01",
+            dev_end="2021-06-01",
+            test_start="2021-07-01",
         ),
         sources=[SourceSegment(adapter="syn", **{"from": None, "until": None})],
-        columns=["close", "low", "volume"], outlier_abs_return=0.5,
+        columns=["close", "low", "volume"],
+        outlier_abs_return=0.5,
         trade_bps=trade_bps,
         leverage=LeverageSpec(instrument="spot", maintenance_margin=0.05, max_leverage=1.0),
     )
@@ -125,28 +132,48 @@ def test_from_assets_mismatched_index_raises():
 
     def _spec(aid):
         return AssetSpec(
-            id=aid, name=aid, asset_class="crypto", quote_currency="USD",
-            rate="FED", calendar="continuous",
+            id=aid,
+            name=aid,
+            asset_class="crypto",
+            quote_currency="USD",
+            rate="FED",
+            calendar="continuous",
             periods=AssetPeriods(
-                history_start="2020-01-01", dev_start="2020-06-01",
-                dev_end="2021-06-01", test_start="2021-07-01",
+                history_start="2020-01-01",
+                dev_start="2020-06-01",
+                dev_end="2021-06-01",
+                test_start="2021-07-01",
             ),
             sources=[SourceSegment(adapter="syn", **{"from": None, "until": None})],
-            columns=["close"], outlier_abs_return=0.5, trade_bps=5.0,
+            columns=["close"],
+            outlier_abs_return=0.5,
+            trade_bps=5.0,
             leverage=LeverageSpec(instrument="spot", maintenance_margin=0.05, max_leverage=1.0),
         )
 
     ad1 = AssetData(
-        spec=_spec("A"), close=pd.Series(1.0, index=idx1), low=pd.Series(np.nan, index=idx1),
-        r=pd.Series(0.01, index=idx1), volume=pd.Series(1e6, index=idx1),
-        source=pd.Series("x", index=idx1), tradable=pd.Series(True, index=idx1),
-        rf=rf1, fin=fin, data_hash="h1",
+        spec=_spec("A"),
+        close=pd.Series(1.0, index=idx1),
+        low=pd.Series(np.nan, index=idx1),
+        r=pd.Series(0.01, index=idx1),
+        volume=pd.Series(1e6, index=idx1),
+        source=pd.Series("x", index=idx1),
+        tradable=pd.Series(True, index=idx1),
+        rf=rf1,
+        fin=fin,
+        data_hash="h1",
     )
     ad2 = AssetData(
-        spec=_spec("B"), close=pd.Series(1.0, index=idx2), low=pd.Series(np.nan, index=idx2),
-        r=pd.Series(0.01, index=idx2), volume=pd.Series(1e6, index=idx2),
-        source=pd.Series("x", index=idx2), tradable=pd.Series(True, index=idx2),
-        rf=rf2, fin=fin2, data_hash="h2",
+        spec=_spec("B"),
+        close=pd.Series(1.0, index=idx2),
+        low=pd.Series(np.nan, index=idx2),
+        r=pd.Series(0.01, index=idx2),
+        volume=pd.Series(1e6, index=idx2),
+        source=pd.Series("x", index=idx2),
+        tradable=pd.Series(True, index=idx2),
+        rf=rf2,
+        fin=fin2,
+        data_hash="h2",
     )
     with pytest.raises(ValueError, match="índices distintos"):
         PanelData.from_assets([ad1, ad2])
@@ -155,6 +182,7 @@ def test_from_assets_mismatched_index_raises():
 # ── BacktestResult.single ────────────────────────────────────────────────
 def test_single_on_multi_asset_raises():
     from btcx.core.backtest import backtest
+
     panel = _make_panel_frame_like(["A", "B"], [[0.01] * 5, [0.01] * 5])
     w = pd.DataFrame({"A": [0.5] * 5, "B": [0.5] * 5}, index=panel.r.index)
     res = backtest(w, panel, CostModel(buffer=0.0))
@@ -164,6 +192,7 @@ def test_single_on_multi_asset_raises():
 
 def test_single_on_one_asset_works():
     from btcx.core.backtest import backtest
+
     panel = _make_panel_frame_like(["BTC"], [[0.01] * 5])
     w = pd.DataFrame({"BTC": [1.0] * 5}, index=panel.r.index)
     res = backtest(w, panel, CostModel(buffer=0.0))

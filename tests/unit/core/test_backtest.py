@@ -230,7 +230,8 @@ def test_validation_errors():
         tradable=pd.DataFrame({"BTC": [True, True]}, index=idx_desc),
         low=pd.DataFrame({"BTC": [np.nan, np.nan]}, index=idx_desc),
         close=pd.DataFrame({"BTC": [1.0, 1.0]}, index=idx_desc),
-        rf=rf_d, fin=rf_d + 0.005 / 365,
+        rf=rf_d,
+        fin=rf_d + 0.005 / 365,
         trade_bps=pd.Series({"BTC": 10.0}),
         panel_hash="test",
     )
@@ -247,7 +248,8 @@ def test_validation_errors():
         tradable=pd.DataFrame({"BTC": [True, True]}, index=idx_dup),
         low=pd.DataFrame({"BTC": [np.nan, np.nan]}, index=idx_dup),
         close=pd.DataFrame({"BTC": [1.0, 1.0]}, index=idx_dup),
-        rf=rf_dup, fin=rf_dup + 0.005 / 365,
+        rf=rf_dup,
+        fin=rf_dup + 0.005 / 365,
         trade_bps=pd.Series({"BTC": 10.0}),
         panel_hash="test",
     )

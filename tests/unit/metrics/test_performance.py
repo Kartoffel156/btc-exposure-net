@@ -161,6 +161,7 @@ def test_exposure_stats_basic():
     r = [0.01, -0.005, 0.02] * 10
     res = _panel_result(r, [0.5] * len(r))
     from btcx.metrics.performance import exposure_stats
+
     df = exposure_stats(res)
     assert "BTC" in df.index
     assert "total" in df.index
@@ -169,6 +170,7 @@ def test_exposure_stats_basic():
 
 def test_summary_table_basic():
     from btcx.metrics.performance import summary_table
+
     r = [0.01, -0.005, 0.02, 0.015] * 5
     res = _panel_result(r, [1.0] * len(r))
     rf = _rf(len(res.returns), start=str(res.returns.index[0].date()))
@@ -212,9 +214,7 @@ def test_empty_metrics_return_zero_or_empty():
         w_target=pd.DataFrame({"BTC": pd.Series(dtype=float)}),
         w_held=pd.DataFrame({"BTC": pd.Series(dtype=float)}),
         turnover=pd.DataFrame({"BTC": pd.Series(dtype=float)}),
-        components=pd.DataFrame(
-            columns=["asset", "cash", "financing", "trading"], dtype=float
-        ),
+        components=pd.DataFrame(columns=["asset", "cash", "financing", "trading"], dtype=float),
         asset_contrib=pd.DataFrame({"BTC": pd.Series(dtype=float)}),
         costs=CostModel(buffer=0.0),
     )

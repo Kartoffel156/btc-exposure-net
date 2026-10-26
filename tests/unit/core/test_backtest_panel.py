@@ -29,9 +29,7 @@ def _make_asset_spec(asset_id: str, calendar: str = "continuous") -> AssetSpec:
         columns=["close", "low", "volume"],
         outlier_abs_return=0.5,
         trade_bps=10.0,
-        leverage=LeverageSpec(
-            instrument="spot", maintenance_margin=0.05, max_leverage=1.0
-        ),
+        leverage=LeverageSpec(instrument="spot", maintenance_margin=0.05, max_leverage=1.0),
     )
 
 
@@ -91,9 +89,7 @@ def _direct_panel(
     fin = rf_s + 0.005 / 365
     r_df = pd.DataFrame(dict(zip(ids, r_matrix, strict=True)), index=idx)
     if tradable_matrix is not None:
-        trd_df = pd.DataFrame(
-            dict(zip(ids, tradable_matrix, strict=True)), index=idx
-        )
+        trd_df = pd.DataFrame(dict(zip(ids, tradable_matrix, strict=True)), index=idx)
     else:
         trd_df = pd.DataFrame({aid: [True] * n for aid in ids}, index=idx)
     return PanelData(

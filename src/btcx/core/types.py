@@ -32,11 +32,15 @@ class AssetData:
     def from_frame(cls, af: AssetFrame, fin_spread_annual: float) -> AssetData:
         prices = af.prices
         close = prices["close"].rename(af.spec.id)
-        low = prices["low"].rename(af.spec.id) if "low" in prices.columns else pd.Series(
-            np.nan, index=prices.index, name=af.spec.id
+        low = (
+            prices["low"].rename(af.spec.id)
+            if "low" in prices.columns
+            else pd.Series(np.nan, index=prices.index, name=af.spec.id)
         )
-        volume = prices["volume"].rename(af.spec.id) if "volume" in prices.columns else pd.Series(
-            np.nan, index=prices.index, name=af.spec.id
+        volume = (
+            prices["volume"].rename(af.spec.id)
+            if "volume" in prices.columns
+            else pd.Series(np.nan, index=prices.index, name=af.spec.id)
         )
         tradable = (
             prices["tradable"].astype(bool).rename(af.spec.id)
@@ -100,13 +104,13 @@ class PanelData:
     """A activos en el mismo índice diario. Columnas en el orden del universo."""
 
     ids: tuple[str, ...]
-    r: pd.DataFrame          # (T, A)
-    tradable: pd.DataFrame   # (T, A) bool
-    low: pd.DataFrame        # (T, A)
-    close: pd.DataFrame      # (T, A)
-    rf: pd.Series            # (T,)
-    fin: pd.Series           # (T,)
-    trade_bps: pd.Series     # (A,)
+    r: pd.DataFrame  # (T, A)
+    tradable: pd.DataFrame  # (T, A) bool
+    low: pd.DataFrame  # (T, A)
+    close: pd.DataFrame  # (T, A)
+    rf: pd.Series  # (T,)
+    fin: pd.Series  # (T,)
+    trade_bps: pd.Series  # (A,)
     panel_hash: str
 
     @classmethod
@@ -153,9 +157,9 @@ class PanelData:
             ids=ids,
             r=r[list(ids)],
             tradable=pf.tradable[list(ids)].astype(bool),
-            low=pf.low[list(ids)] if not pf.low.empty else pd.DataFrame(
-                np.nan, index=pf.close.index, columns=list(ids)
-            ),
+            low=pf.low[list(ids)]
+            if not pf.low.empty
+            else pd.DataFrame(np.nan, index=pf.close.index, columns=list(ids)),
             close=pf.close[list(ids)],
             rf=pf.rf,
             fin=fin,
@@ -187,11 +191,11 @@ class SingleView:
 
 @dataclass(frozen=True)
 class BacktestResult:
-    returns: pd.Series           # R neto de la cartera, indexado en el día de realización
-    w_target: pd.DataFrame       # (T, A)
-    w_held: pd.DataFrame         # (T, A) tras buffer y operabilidad
-    turnover: pd.DataFrame       # (T, A)
-    components: pd.DataFrame     # columns: asset, cash, financing, trading (suman returns)
+    returns: pd.Series  # R neto de la cartera, indexado en el día de realización
+    w_target: pd.DataFrame  # (T, A)
+    w_held: pd.DataFrame  # (T, A) tras buffer y operabilidad
+    turnover: pd.DataFrame  # (T, A)
+    components: pd.DataFrame  # columns: asset, cash, financing, trading (suman returns)
     asset_contrib: pd.DataFrame  # (T, A) ŵ_{t−1,a}·r_{t,a}: atribución por activo
     costs: CostModel
 

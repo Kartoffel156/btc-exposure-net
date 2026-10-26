@@ -22,14 +22,11 @@ def _relative(path: Path) -> str:
 
 
 def _collect_files() -> list[Path]:
-    return [
-        p
-        for p in SRC_ROOT.rglob("*.py")
-        if _relative(p) not in WHITELIST
-    ]
+    return [p for p in SRC_ROOT.rglob("*.py") if _relative(p) not in WHITELIST]
 
 
 # ── Escáner via ast ───────────────────────────────────────────────────────
+
 
 class _Visitor(ast.NodeVisitor):
     def __init__(self) -> None:
@@ -37,30 +34,19 @@ class _Visitor(ast.NodeVisitor):
 
     def visit_Call(self, node: ast.Call) -> None:
         # .shift(negative)
-        if (
-            isinstance(node.func, ast.Attribute)
-            and node.func.attr == "shift"
-            and node.args
-        ):
+        if isinstance(node.func, ast.Attribute) and node.func.attr == "shift" and node.args:
             arg = node.args[0]
             if isinstance(arg, ast.UnaryOp) and isinstance(arg.op, ast.USub):
-                self.violations.append(
-                    f"shift(-k) en línea {node.lineno}"
-                )
+                self.violations.append(f"shift(-k) en línea {node.lineno}")
             elif (
                 isinstance(arg, ast.Constant)
                 and isinstance(arg.value, (int, float))
                 and arg.value < 0
             ):
-                self.violations.append(
-                    f"shift({arg.value}) en línea {node.lineno}"
-                )
+                self.violations.append(f"shift({arg.value}) en línea {node.lineno}")
 
         # .rolling(..., center=True)
-        if (
-            isinstance(node.func, ast.Attribute)
-            and node.func.attr == "rolling"
-        ):
+        if isinstance(node.func, ast.Attribute) and node.func.attr == "rolling":
             for kw in node.keywords:
                 is_center_true = (
                     kw.arg == "center"
@@ -68,9 +54,7 @@ class _Visitor(ast.NodeVisitor):
                     and kw.value.value is True
                 )
                 if is_center_true:
-                    self.violations.append(
-                        f"rolling(center=True) en línea {node.lineno}"
-                    )
+                    self.violations.append(f"rolling(center=True) en línea {node.lineno}")
 
         self.generic_visit(node)
 
@@ -100,6 +84,7 @@ def _scan(path: Path) -> list[str]:
 
 # ── Test ──────────────────────────────────────────────────────────────────
 
+
 def test_no_lookahead_patterns():
     files = _collect_files()
     assert files, "No se encontraron archivos .py en src/btcx/"
@@ -110,6 +95,4 @@ def test_no_lookahead_patterns():
         for v in viols:
             all_violations.append(f"{_relative(path)}: {v}")
 
-    assert not all_violations, (
-        "Patrones de lookahead encontrados:\n" + "\n".join(all_violations)
-    )
+    assert not all_violations, "Patrones de lookahead encontrados:\n" + "\n".join(all_violations)
