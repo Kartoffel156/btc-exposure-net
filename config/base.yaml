@@ -84,7 +84,13 @@ scaling:
   k_search: [0.5, 5.0]
   stress_gap: -0.40
   stress_fin_spread: 0.10
-features: {}
+features:
+  blocks: [core]
+  zscore_window: 365
+  zscore_min_periods: 180
+  clip: 4.0
+  warmup_days: 400
+  forbidden: [calendar, full_sample_stats, news, sentiment]
 model: {}
 training: {}
 evolution: {}

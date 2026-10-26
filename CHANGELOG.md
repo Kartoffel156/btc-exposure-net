@@ -1,5 +1,28 @@
 # Changelog
 
+## [v0.6.0] · Plan 06 · Features CORE/EXTENDED + normalización causal
+
+- `config/base.yaml`: sección `features` con bloques, ventanas de z-score, clip,
+  warmup_days y lista de features prohibidas.
+- `config.py`: `FeaturesCfg` Pydantic frozen model; `Settings.features: FeaturesCfg`.
+- `features/registry.py`: `FeatureSpec` dataclass frozen + `REGISTRY` con 13 features
+  del bloque core; `get_available()` filtra por columnas disponibles en el activo.
+- `features/price.py`: `compute_fold_independent()` (ret_1/7/30, vol_ratio, downside_vol,
+  dd_365, vol_z con reset por segmento, dist_ma200, skew_60, vol_of_vol) y
+  `compute_fold_dependent()` (f_bench, log_base); `compute_raw()` combina ambas.
+- `features/normalize.py`: `rolling_zscore()` causal (ventana rodante, incluye t,
+  sin lookahead), recortado a [−clip, clip].
+- `features/pipeline.py`: `FeatureMatrix` y `FeaturePipeline` — ajusta benchmark,
+  calcula features, normaliza, aplica warm-up y reporta features no disponibles.
+- `benchmarks/levels.py`: `TrendVolTarget.components()` añade columna `sigma_target`.
+- CLI: `btcx report features --asset <ID>` genera `reports/features/<ID>/correlaciones_dev.md`
+  con matriz de correlación de features en el período dev.
+- `reports/features/correlaciones_dev.md`: marcador de posición.
+- Tests: `test_registry.py`, `test_price.py`, `test_normalize.py`, `test_pipeline.py`,
+  `test_no_calendar.py`, `test_truncation_invariance.py` (unit);
+  `test_syn_feature_pipeline` (integration).
+- ADR implícito: features sin lookahead verificadas por truncation invariance con hypothesis.
+
 ## [v0.5.0] · Plan 05 · Escalado Track B + reporte de Fase 0
 
 - `config/base.yaml`: sección `scaling` con `ScalingCfg` (hard_cap, kelly_mode, liq_stress_drop, etc.).
