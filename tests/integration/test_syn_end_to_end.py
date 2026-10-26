@@ -166,3 +166,63 @@ def test_syn_benchmark_ladder(syn_env):
         R = res.returns
         assert R.notna().any(), f"{name}: todos los retornos son NaN"
         assert np.isfinite(R.dropna().values).all(), f"{name}: retornos no finitos"
+
+
+@pytest.mark.integration
+def test_syn_track_b(syn_env):
+    """TrackBScaler.fit + scale sobre SYN: produce retornos finitos y scale nunca < w_min."""
+    import numpy as np
+
+    from btcx.assets.registry import load_asset as reg_load
+    from btcx.benchmarks.levels import make_benchmarks
+    from btcx.core.backtest import backtest
+    from btcx.core.types import AssetData, CostModel
+    from btcx.data.access import load_asset
+    from btcx.scaling.track_b import TrackBScaler
+
+    settings, processed = syn_env
+    _build_syn(settings, processed)
+
+    spec = reg_load("SYN", settings)
+    af = load_asset(settings, "SYN", processed_root=str(processed))
+    ad = AssetData.from_frame(af, settings.costs.fin_spread_annual)
+
+    dev_start = pd.Timestamp(spec.periods.dev_start)
+    dev_end = pd.Timestamp(spec.periods.dev_end)
+    mid = dev_start + (dev_end - dev_start) / 2
+    md_dev = ad.slice(dev_start, dev_end)
+    train_pos = md_dev.close.loc[dev_start:mid].index
+
+    benchmarks = make_benchmarks(settings, spec)
+    costs = CostModel(buffer=settings.exposure.buffer, cash_yield=settings.costs.cash_yield)
+    w_min = settings.exposure.w_min
+
+    # Usar N1 como benchmark Track A
+    rule_n1 = benchmarks["N1_VolTarget"]
+    fitted_n1 = rule_n1.fit(md_dev, train_pos)
+    w_a = fitted_n1.target(md_dev).fillna(w_min).clip(lower=0.0)
+
+    cfg = settings.scaling
+    scaler = TrackBScaler(
+        cfg=cfg,
+        w_min=w_min,
+        mmr=spec.leverage.maintenance_margin,
+        max_leverage=spec.leverage.max_leverage,
+    )
+
+    fitted_scaler = scaler.fit(w_a, md_dev, costs, train_pos.to_numpy())
+    assert fitted_scaler.k is not None
+
+    w_b = fitted_scaler.scale(w_a, md_dev)
+
+    # Verificar invariantes
+    assert (w_b >= w_min - 1e-9).all(), "w_B contiene valores por debajo de w_min"
+    assert (w_b <= cfg.hard_cap + 1e-9).all(), "w_B supera hard_cap"
+    assert w_b.notna().all(), "w_B contiene NaN"
+
+    # Verificar que el backtest funciona
+    panel = md_dev.as_panel()
+    w_b_df = w_b.to_frame(name="SYN")
+    res = backtest(w_b_df, panel, costs)
+    assert res.returns.notna().any()
+    assert np.isfinite(res.returns.dropna().values).all()
