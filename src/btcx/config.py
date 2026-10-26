@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 
 class _Frozen(BaseModel):
@@ -70,6 +70,30 @@ class BenchmarksCfg(_Frozen):
     random_paths: int
 
 
+class ScalingCfg(_Frozen):
+    """Configuración del módulo de escalado Track B. Ver pre-plan §8.4."""
+
+    hard_cap: float
+    kelly_mode: Literal["asset", "strategy", "off"]
+    kelly_frac: float
+    mu_haircut: float
+    strategy_vol_halflife: int
+    liq_stress_drop: float
+    liq_proximity_max: float
+    k_search: tuple[float, float]
+    stress_gap: float
+    stress_fin_spread: float
+
+    @field_validator("k_search", mode="before")
+    @classmethod
+    def _parse_k_search(cls, v: object) -> tuple[float, float]:
+        """Acepta lista o tupla de longitud 2. Ver pre-plan §8.4."""
+        if isinstance(v, (list, tuple)) and len(v) == 2:
+            items = list(v)
+            return (float(items[0]), float(items[1]))
+        raise ValueError("k_search debe ser una lista o tupla de exactamente 2 floats")
+
+
 class Settings(_Frozen):
     project: ProjectCfg
     periods: PeriodsCfg
@@ -78,7 +102,18 @@ class Settings(_Frozen):
     costs: CostsCfg
     benchmarks: BenchmarksCfg
     asset_classes: dict[str, Any] = {}
-    scaling: dict[str, Any] = {}
+    scaling: ScalingCfg = ScalingCfg(
+        hard_cap=2.0,
+        kelly_mode="off",
+        kelly_frac=0.25,
+        mu_haircut=0.5,
+        strategy_vol_halflife=20,
+        liq_stress_drop=0.50,
+        liq_proximity_max=0.50,
+        k_search=(0.5, 5.0),
+        stress_gap=-0.40,
+        stress_fin_spread=0.10,
+    )
     features: dict[str, Any] = {}
     model: dict[str, Any] = {}
     training: dict[str, Any] = {}

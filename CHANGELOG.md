@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.5.0] · Plan 05 · Escalado Track B + reporte de Fase 0
+
+- `config/base.yaml`: sección `scaling` con `ScalingCfg` (hard_cap, kelly_mode, liq_stress_drop, etc.).
+- `config.py`: `ScalingCfg` Pydantic frozen model; `Settings.scaling: ScalingCfg`.
+- `scaling/liquidation.py`: `liquidation_drop()`, `max_leverage_surviving()`,
+  `liquidation_proximity()` — cálculos causales de riesgo de liquidación.
+- `scaling/track_b.py`: `TrackBScaler` dataclass inmutable con `fit()/cap()/scale()`;
+  bisección de k en train para igualar vol buy&hold; tope dinámico
+  min(hard_cap, max_leverage, L_liq) con capa Kelly opcional.
+- `scaled_benchmarks()`: aplica TrackBScaler a N1, N2, N3.
+- CLI: `btcx report fase0 --asset <ID>` genera `REPORTE_FASE0.md` con benchmarks,
+  atribución, Track B, Sharpe anual y sensibilidad a costos.
+- `scripts/diagnose_kelly_cap.py`: diagnóstico de distribución de L_max y alcanzabilidad
+  de vol para distintos modos Kelly. Guarda en `reports/fase0/<ID>/kelly_cap_diagnostico.md`.
+- Tests: `test_liquidation.py`, `test_track_b.py` (unit); `test_t8_scaling_identity.py`,
+  `test_t9_stress.py` (sanity); `test_syn_track_b` en e2e (integration).
+- ADR-004: decisión D-topes (kelly_mode="off" por defecto, tope por liquidación).
+- ADR-005: decisión D8 (fiscalidad: no modelada en Fase 0).
+
 ## [v0.4.0] · Plan 04 · Benchmarks Nivel 0–3 + atribución
 
 - `benchmarks/volatility.py`: `ewma_vol()` causal, EWMA de r² de media cero.

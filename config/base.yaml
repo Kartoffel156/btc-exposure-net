@@ -73,7 +73,17 @@ benchmarks:
   forecast_cap: 20.0
   random_paths: 1000
 
-scaling: {}
+scaling:
+  hard_cap: 2.0
+  kelly_mode: "off"
+  kelly_frac: 0.25
+  mu_haircut: 0.5
+  strategy_vol_halflife: 20
+  liq_stress_drop: 0.50
+  liq_proximity_max: 0.50
+  k_search: [0.5, 5.0]
+  stress_gap: -0.40
+  stress_fin_spread: 0.10
 features: {}
 model: {}
 training: {}
