@@ -1,0 +1,50 @@
+project:
+  seed: 20260101
+  ann_factor: 365
+
+periods:
+  history_start: "2014-01-01"
+  dev_start: "2015-01-01"
+  dev_end: "2022-12-31"
+  test_start: "2023-01-01"
+  lab_train_end: "2020-12-31"
+
+data:
+  assets_dir: config/assets
+  rates_dir: config/rates
+  universe: [BTC]
+  binance_base_urls: ["https://api.binance.com", "https://data-api.binance.vision"]
+
+asset_classes: {}
+
+exposure:
+  w_min: 0.20
+  w_max: 1.00
+  buffer: 0.10
+  drift: false
+
+costs:
+  trade_bps_multipliers: [0.3333, 1.0, 2.0]
+  fin_spread_annual: 0.05
+  fin_spread_sensitivity: [0.02, 0.05, 0.10]
+  cash_yield: true
+
+benchmarks:
+  vol_halflife: 20
+  vol_min_periods: 60
+  sigma_target: train_median
+  trend_sma: 50
+  ewmac_pairs: [[16, 64], [32, 128]]
+  ewmac_weights: [0.5, 0.5]
+  fdm: 1.1
+  forecast_abs_target: 10.0
+  forecast_cap: 20.0
+  random_paths: 1000
+
+scaling: {}
+features: {}
+model: {}
+training: {}
+evolution: {}
+validation: {}
+stats: {}

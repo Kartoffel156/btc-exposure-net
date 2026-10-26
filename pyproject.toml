@@ -1,0 +1,64 @@
+[project]
+name = "btcx"
+version = "0.1.0"
+description = "Exposición dinámica en BTC con red residual + laboratorio visual"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.2",
+  "scipy>=1.12",
+  "pyarrow>=15",
+  "pydantic>=2.6",
+  "pyyaml>=6",
+  "typer>=0.12",
+  "requests>=2.31",
+  "tenacity>=8.2",
+  "matplotlib>=3.8",
+  "joblib>=1.3",
+]
+
+[project.scripts]
+btcx = "btcx.cli:app"
+
+[dependency-groups]
+dev = [
+  "ruff>=0.5", "mypy>=1.10", "pytest>=8", "pytest-cov>=5", "hypothesis>=6.100",
+  "pre-commit>=3.7", "pandas-stubs", "types-requests", "types-PyYAML", "freezegun>=1.4",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/btcx"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+exclude = ["plans/", "docs/"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF", "PD", "NPY", "PL", "PT"]
+ignore = ["PLR0913", "PLR2004"]
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+plugins = ["pydantic.mypy"]
+mypy_path = "src"
+
+[[tool.mypy.overrides]]
+module = ["scipy.*", "joblib.*", "matplotlib.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "unit: rápido, sin IO",
+  "integration: usa datos canónicos del repo",
+  "sanity: pruebas de cordura T1–T9",
+  "slow: > 30 s; fuera del CI de PR, corre en nightly",
+]
