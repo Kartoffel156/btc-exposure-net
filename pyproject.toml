@@ -1,6 +1,6 @@
 [project]
 name = "btcx"
-version = "0.1.0"
+version = "0.2.0"
 description = "Exposición dinámica en BTC con red residual + laboratorio visual"
 requires-python = ">=3.11"
 dependencies = [
@@ -41,7 +41,14 @@ exclude = ["plans/", "docs/"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF", "PD", "NPY", "PL", "PT"]
-ignore = ["PLR0913", "PLR2004"]
+ignore = [
+  "PLR0913", "PLR2004",
+  "B008",     # typer.Option en defaults es el patron estandar de Typer
+  "PLC0415",  # imports lazy en comandos CLI y metodos pydantic son aceptables
+  "PLW0108",  # lambda innecesario (falso positivo frecuente con callbacks)
+  "PLR0917",  # demasiados argumentos posicionales (funciones internas)
+  "RUF001", "RUF002", "RUF003",  # guiones unicode en comentarios/docstrings en espanol
+]
 
 [tool.mypy]
 strict = true

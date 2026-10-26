@@ -1,0 +1,26 @@
+id: BTC
+name: Bitcoin
+asset_class: crypto
+quote_currency: USD
+rate: USD_TBILL_3M
+
+periods:
+  history_start: "2014-01-02"
+  dev_start: "2015-01-01"
+  dev_end: "2022-12-31"
+  test_start: "2023-01-01"
+
+sources:
+  - adapter: bitstamp_ohlc
+    params: {pair: btcusd}
+    until: "2017-12-31"
+  - adapter: binance_klines
+    params: {symbol: BTCUSDT}
+    from: "2017-08-17"
+
+splice:
+  overlap: ["2017-08-17", "2017-12-31"]
+  max_median_abs_diff: 0.005
+
+columns: [open, high, low, close, volume]
+aux: {}

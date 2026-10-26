@@ -1,0 +1,6 @@
+id: USD_TBILL_3M
+name: "US 3-Month Treasury Bill (DTB3)"
+adapter: fred_series
+params:
+  series: DTB3
+transform: tbill_discount_to_daily

@@ -1,0 +1,29 @@
+# Plantilla para añadir un activo nuevo.
+# Renombrar a config/assets/<ID>.yaml y completar los campos.
+# Ver docs/como_anadir_un_activo.md para instrucciones paso a paso.
+
+id: ETH                     # MAYÚSCULAS, [A-Z0-9_], único en config/assets/
+name: Ether
+asset_class: crypto         # crypto | etf | future | synthetic (o clase nueva en base.yaml)
+quote_currency: USD
+rate: USD_TBILL_3M
+
+periods:
+  history_start: "2017-08-17"
+  dev_start: "2018-09-01"   # history_start + warm-up (~400 días)
+  dev_end: "2022-12-31"
+  test_start: "2023-01-01"  # ver H9 en PLAN_00: con activos correlacionados el test puede estar "visto"
+
+sources:
+  - adapter: binance_klines
+    params: {symbol: ETHUSDT}
+
+columns: [open, high, low, close, volume]
+aux: {}
+
+# Overrides opcionales de la clase (descomentar si se necesitan):
+# trade_bps: 20
+# outlier_abs_return: 0.45
+# leverage:
+#   maintenance_margin: 0.15
+#   max_leverage: 2.0
