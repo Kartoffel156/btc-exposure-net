@@ -1,0 +1,16 @@
+{
+  "adapters": [
+    "binance_klines"
+  ],
+  "fetch_date": "2026-10-25",
+  "splice_reports": [],
+  "outliers": [
+    {
+      "date": "2020-03-12",
+      "return": -0.44596886079852016,
+      "verdict": "keep"
+    }
+  ],
+  "spec_hash": "8613ebd2eb597e6f",
+  "saved_at": "2026-10-26T00:56:40.958473+00:00"
+}

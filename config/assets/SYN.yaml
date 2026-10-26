@@ -1,0 +1,22 @@
+id: SYN
+name: Synthetic Asset (testing only)
+asset_class: synthetic
+quote_currency: USD
+rate: USD_TBILL_3M
+
+periods:
+  history_start: "2014-01-01"
+  dev_start: "2015-01-01"
+  dev_end: "2022-12-31"
+  test_start: "2023-01-01"
+
+sources:
+  - adapter: synthetic
+    params:
+      seed: 42
+      mu: 0.0003
+      sigma: 0.025
+      garch: false
+
+columns: [open, high, low, close, volume]
+aux: {}

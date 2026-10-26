@@ -1,0 +1,15 @@
+id: ETH
+name: Ether
+asset_class: crypto
+quote_currency: USD
+rate: USD_TBILL_3M
+periods:
+  history_start: "2017-08-17"
+  dev_start: "2018-09-01"
+  dev_end: "2022-12-31"
+  test_start: "2023-01-01"
+sources:
+  - adapter: binance_klines
+    params: {symbol: ETHUSDT}
+columns: [open, high, low, close, volume]
+aux: {}

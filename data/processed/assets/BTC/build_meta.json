@@ -1,0 +1,20 @@
+{
+  "adapters": [
+    "bitstamp_ohlc",
+    "binance_klines"
+  ],
+  "fetch_date": "2026-10-25",
+  "splice_reports": [
+    {
+      "overlap_start": "2017-08-17",
+      "overlap_end": "2017-12-31",
+      "overlap_days": 137,
+      "median_abs_diff": 0.004669758851554073,
+      "max_abs_diff": 0.09022504959299538,
+      "passed": true
+    }
+  ],
+  "outliers": [],
+  "spec_hash": "8e75308f90fbe4be",
+  "saved_at": "2026-10-26T00:56:10.698538+00:00"
+}

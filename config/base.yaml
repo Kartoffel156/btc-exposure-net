@@ -12,10 +12,42 @@ periods:
 data:
   assets_dir: config/assets
   rates_dir: config/rates
-  universe: [BTC]
+  universe: [BTC, ETH]
   binance_base_urls: ["https://api.binance.com", "https://data-api.binance.vision"]
 
-asset_classes: {}
+asset_classes:
+  crypto:
+    calendar: continuous
+    outlier_abs_return: 0.40
+    trade_bps: 15.0
+    leverage:
+      instrument: spot_margin
+      maintenance_margin: 0.10
+      max_leverage: 2.0
+  etf:
+    calendar: business
+    outlier_abs_return: 0.15
+    trade_bps: 3.0
+    leverage:
+      instrument: margin_account
+      maintenance_margin: 0.25
+      max_leverage: 2.0
+  future:
+    calendar: business
+    outlier_abs_return: 0.20
+    trade_bps: 2.0
+    leverage:
+      instrument: future
+      maintenance_margin: 0.08
+      max_leverage: 3.0
+  synthetic:
+    calendar: continuous
+    outlier_abs_return: 0.50
+    trade_bps: 15.0
+    leverage:
+      instrument: spot_margin
+      maintenance_margin: 0.10
+      max_leverage: 2.0
 
 exposure:
   w_min: 0.20
