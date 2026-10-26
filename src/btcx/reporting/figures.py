@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import numpy as np
 import matplotlib.pyplot as plt
 
 from btcx.core.types import BacktestResult
@@ -56,7 +57,7 @@ def exposure_figure(
     fig, ax = plt.subplots(figsize=(12, 4))
     for name, res in results.items():
         w = res.w_target.sum(axis=1)
-        ax.plot(w.index, w.values, label=name, linewidth=1.0, alpha=0.8)
+        ax.plot(w.index, np.asarray(w.values, dtype=float), label=name, linewidth=1.0, alpha=0.8)
     ax.set_title(title)
     ax.set_xlabel("Fecha")
     ax.set_ylabel("Exposición total")
@@ -82,8 +83,9 @@ def drawdown_figure(
     fig, ax = plt.subplots(figsize=(12, 4))
     for name, res in results.items():
         dd = drawdown(res.returns)
-        ax.fill_between(dd.index, dd.values, 0, alpha=0.3, label=name)
-        ax.plot(dd.index, dd.values, linewidth=0.8)
+        dd_arr = np.asarray(dd.values, dtype=float)
+        ax.fill_between(dd.index, dd_arr, 0, alpha=0.3, label=name)
+        ax.plot(dd.index, dd_arr, linewidth=0.8)
     ax.set_title(title)
     ax.set_xlabel("Fecha")
     ax.set_ylabel("Drawdown")
