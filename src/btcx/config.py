@@ -70,6 +70,17 @@ class BenchmarksCfg(_Frozen):
     random_paths: int
 
 
+class FeaturesCfg(_Frozen):
+    """Configuración del módulo de features. Ver pre-plan §7."""
+
+    blocks: list[str]
+    zscore_window: int
+    zscore_min_periods: int
+    clip: float
+    warmup_days: int
+    forbidden: list[str]
+
+
 class ScalingCfg(_Frozen):
     """Configuración del módulo de escalado Track B. Ver pre-plan §8.4."""
 
@@ -114,7 +125,14 @@ class Settings(_Frozen):
         stress_gap=-0.40,
         stress_fin_spread=0.10,
     )
-    features: dict[str, Any] = {}
+    features: FeaturesCfg = FeaturesCfg(
+        blocks=["core"],
+        zscore_window=365,
+        zscore_min_periods=180,
+        clip=4.0,
+        warmup_days=400,
+        forbidden=["calendar", "full_sample_stats", "news", "sentiment"],
+    )
     model: dict[str, Any] = {}
     training: dict[str, Any] = {}
     evolution: dict[str, Any] = {}

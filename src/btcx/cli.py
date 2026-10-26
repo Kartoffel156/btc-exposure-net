@@ -466,6 +466,104 @@ def report_fase0(
     typer.echo(f"  ✓ {readme_path}")
 
 
+@report_app.command("features")
+def report_features(
+    asset: list[str] = typer.Option([], "--asset", help="ID del activo (repetible)."),
+    config: str | None = typer.Option(None, "--config"),
+    output_dir: str = typer.Option(
+        "reports/features", "--output-dir", help="Directorio de salida."
+    ),
+) -> None:
+    """Genera correlaciones_dev.md con la matriz de correlación de features."""
+    import pandas as pd
+
+    from btcx.assets.registry import load_asset as reg_load_asset
+    from btcx.benchmarks.levels import TrendVolTarget
+    from btcx.benchmarks.trend import TrendForecaster
+    from btcx.core.types import AssetData
+    from btcx.data.access import load_asset
+    from btcx.features.pipeline import FeaturePipeline
+
+    settings = load_settings(*([Path(config)] if config else []))
+    ids = asset if asset else settings.data.universe
+    cfg = settings.features
+
+    out_base = Path(output_dir)
+
+    for aid in ids:
+        try:
+            spec = reg_load_asset(aid, settings)
+            typer.echo(f"→ Features para {aid}…")
+            af = load_asset(settings, aid)
+            ad = AssetData.from_frame(af, settings.costs.fin_spread_annual)
+
+            dev_start = pd.Timestamp(spec.periods.dev_start)
+            dev_end = pd.Timestamp(spec.periods.dev_end)
+            md_dev = ad.slice(dev_start, dev_end)
+
+            # Pipeline de features
+            forecaster = TrendForecaster(
+                pairs=[(f, s) for f, s in settings.benchmarks.ewmac_pairs],
+                weights=list(settings.benchmarks.ewmac_weights),
+                fdm=settings.benchmarks.fdm,
+                abs_target=settings.benchmarks.forecast_abs_target,
+                cap=settings.benchmarks.forecast_cap,
+                scalars=None,
+            )
+            bench_rule = TrendVolTarget(
+                vol_halflife=settings.benchmarks.vol_halflife,
+                vol_min_periods=settings.benchmarks.vol_min_periods,
+                w_min=settings.exposure.w_min,
+                w_max=settings.exposure.w_max,
+                forecaster=forecaster,
+            )
+            pipeline = FeaturePipeline(
+                blocks=tuple(cfg.blocks),
+                cfg=cfg,
+                bench_rule=bench_rule,
+            )
+
+            n = len(md_dev.r)
+            import numpy as np
+
+            train_pos = np.arange(n // 2)
+            fm = pipeline.build(md_dev, train_pos, f"{aid}_dev")
+
+            # Correlación sobre filas válidas
+            X_valid = fm.X.loc[fm.valid]
+            corr = X_valid.corr()
+
+            out_dir = out_base / aid
+            out_dir.mkdir(parents=True, exist_ok=True)
+            out_path = out_dir / "correlaciones_dev.md"
+
+            lines = [
+                f"# Correlaciones de Features — {aid} (período dev)",
+                "",
+                f"> **Período dev**: {dev_start.date()} – {dev_end.date()}",
+                f"> **Features**: {', '.join(fm.names)}",
+                f"> **Filas válidas**: {fm.valid.sum()} / {len(md_dev.r)}",
+                "",
+                "## Matriz de correlación",
+                "",
+                corr.round(3).to_markdown(),
+                "",
+            ]
+            if fm.unavailable:
+                lines += [
+                    "## Features no disponibles",
+                    "",
+                    f"- {', '.join(fm.unavailable)}",
+                    "",
+                ]
+
+            out_path.write_text("\n".join(lines), encoding="utf-8")
+            typer.echo(f"  ✓ {out_path}")
+        except Exception as e:
+            typer.echo(f"  ✗ {aid}: {e}", err=True)
+            raise typer.Exit(1) from None
+
+
 @rates_app.command("build")
 def rates_build(
     rate: str = typer.Option(..., "--rate", help="ID de la tasa (ej. USD_TBILL_3M)."),

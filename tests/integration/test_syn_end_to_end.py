@@ -226,3 +226,69 @@ def test_syn_track_b(syn_env):
     res = backtest(w_b_df, panel, costs)
     assert res.returns.notna().any()
     assert np.isfinite(res.returns.dropna().values).all()
+
+
+@pytest.mark.integration
+def test_syn_feature_pipeline(syn_env):
+    """Construye FeaturePipeline sobre SYN y verifica coherencia."""
+    import numpy as np
+
+    from btcx.assets.registry import load_asset as reg_load
+    from btcx.benchmarks.levels import TrendVolTarget
+    from btcx.benchmarks.trend import TrendForecaster
+    from btcx.core.types import AssetData
+    from btcx.data.access import load_asset
+    from btcx.features.pipeline import FeaturePipeline
+
+    settings, processed = syn_env
+    _build_syn(settings, processed)
+
+    spec = reg_load("SYN", settings)
+    af = load_asset(settings, "SYN", processed_root=str(processed))
+    ad = AssetData.from_frame(af, settings.costs.fin_spread_annual)
+
+    dev_start = pd.Timestamp(spec.periods.dev_start)
+    dev_end = pd.Timestamp(spec.periods.dev_end)
+    md_dev = ad.slice(dev_start, dev_end)
+
+    # Construir pipeline
+    forecaster = TrendForecaster(
+        pairs=[(16, 64), (32, 128)],
+        weights=[0.5, 0.5],
+        fdm=1.1,
+        abs_target=10.0,
+        cap=20.0,
+        scalars=None,
+    )
+    bench_rule = TrendVolTarget(
+        vol_halflife=20,
+        vol_min_periods=60,
+        w_min=settings.exposure.w_min,
+        w_max=settings.exposure.w_max,
+        forecaster=forecaster,
+    )
+    cfg = settings.features
+    pipeline = FeaturePipeline(
+        blocks=tuple(cfg.blocks),
+        cfg=cfg,
+        bench_rule=bench_rule,
+    )
+
+    # Usar primera mitad como período de entrenamiento
+    n = len(md_dev.r)
+    train_pos = np.arange(n // 2)
+    fm = pipeline.build(md_dev, train_pos, "syn_dev")
+
+    # Verificar que hay filas válidas
+    valid_count = fm.valid.sum()
+    assert valid_count > 0, f"No hay filas válidas. Features: {fm.names}"
+
+    # Verificar shape
+    assert len(fm.X) == len(md_dev.r)
+    assert len(fm.names) > 0
+
+    # SYN tiene columna 'volume' en spec → vol_z NO debe estar en unavailable
+    assert "vol_z" not in fm.unavailable, (
+        f"vol_z no debería estar en unavailable para SYN (tiene volume). "
+        f"unavailable={fm.unavailable}"
+    )

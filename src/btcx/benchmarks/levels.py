@@ -344,6 +344,9 @@ class TrendVolTarget:
         base = (self.sigma_target / sigma_ann.where(sigma_ann > 0, other=np.nan)).fillna(self.w_min)
         f = self.forecaster.forecast(md.close, sigma)
         w_bench = (base * f / 10.0).clip(lower=self.w_min, upper=self.w_max)
+        sigma_target_series = pd.Series(
+            self.sigma_target, index=md.close.index, name="sigma_target"
+        )
         return pd.DataFrame(
             {
                 "sigma": sigma,
@@ -351,6 +354,7 @@ class TrendVolTarget:
                 "base": base,
                 "forecast": f,
                 "w_bench": w_bench,
+                "sigma_target": sigma_target_series,
             },
             index=md.close.index,
         )
