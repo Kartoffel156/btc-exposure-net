@@ -1,5 +1,21 @@
 # Changelog
 
+## [v0.4.0] · Plan 04 · Benchmarks Nivel 0–3 + atribución
+
+- `benchmarks/volatility.py`: `ewma_vol()` causal, EWMA de r² de media cero.
+- `benchmarks/trend.py`: `ewmac_raw()`, `TrendForecaster` inmutable con `fit()/forecast()`.
+- `benchmarks/levels.py`: escalón N0–N3 (`BuyAndHold`, `ConstantExposure`, `VolTarget`,
+  `TrendFilter`, `TrendVolTarget`) con protocolo `ExposureRule` y `make_benchmarks()`.
+- `benchmarks/random_paths.py`: exposiciones aleatorias suavizadas, calibración de semivida
+  y distribución de Sharpe de referencia.
+- `metrics/attribution.py`: `ladder()` y `yearly_sharpe_table()`.
+- `reporting/figures.py`: figuras matplotlib de equity, exposición y drawdown.
+- `reporting/markdown.py`: `render_report()` genera Markdown + PNGs.
+- CLI: `btcx report benchmarks --asset <ID>` genera reporte sobre el período dev.
+- Tests: causalidad de vol, escalares solo de train, rangos de exposición, consistencia
+  de componentes, sensibilidad T7.
+- ADR-003: decisiones D2 (sigma_target=train_median) y D7 (ewmac_pairs=(16,64)+(32,128)).
+
 ## [v0.3.0] · Plan 03 · Motor de backtest único y métricas
 
 - Motor de panel único `backtest()`: recibe `(T, A)` exposiciones y convierte en retornos netos.
