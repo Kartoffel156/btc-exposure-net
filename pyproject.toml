@@ -1,6 +1,6 @@
 [project]
 name = "btcx"
-version = "0.2.0"
+version = "0.3.0"
 description = "Exposición dinámica en BTC con red residual + laboratorio visual"
 requires-python = ">=3.11"
 dependencies = [
@@ -48,6 +48,7 @@ ignore = [
   "PLW0108",  # lambda innecesario (falso positivo frecuente con callbacks)
   "PLR0917",  # demasiados argumentos posicionales (funciones internas)
   "RUF001", "RUF002", "RUF003",  # guiones unicode en comentarios/docstrings en espanol
+  "N803", "N806",  # variables mayusculas (W, R, T, A) son convencion matematica en quant
 ]
 
 [tool.mypy]
