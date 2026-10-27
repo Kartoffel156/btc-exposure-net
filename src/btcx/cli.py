@@ -30,6 +30,9 @@ decide_app = typer.Typer(help="Decisión de Fase 3.")
 test_app = typer.Typer(help="Apertura del periodo de test.")
 paper_app = typer.Typer(help="Paper trading automatizado.")
 
+registry_app = typer.Typer(help="Gestión del registro de experimentos.")
+trackb_app = typer.Typer(help="Evaluación Track B.")
+
 app.add_typer(asset_app, name="asset")
 app.add_typer(data_app, name="data")
 app.add_typer(rates_app, name="rates")
@@ -44,6 +47,8 @@ app.add_typer(stats_app, name="stats")
 app.add_typer(decide_app, name="decide")
 app.add_typer(test_app, name="test")
 app.add_typer(paper_app, name="paper")
+app.add_typer(registry_app, name="registry")
+app.add_typer(trackb_app, name="trackb")
 
 
 @app.callback()
@@ -582,3 +587,575 @@ def rates_build(
     except Exception as e:
         typer.echo(f"✗ {e}", err=True)
         raise typer.Exit(1) from None
+
+
+# ── lab ────────────────────────────────────────────────────────────────────────
+
+
+@lab_app.command("export")
+def lab_export(
+    asset: list[str] = typer.Option([], "--asset", help="Activo a exportar (repite para varios)."),
+    output: str = typer.Option(
+        "lab/src/data/embedded.json",
+        "--output",
+        help="Ruta de salida del JSON.",
+    ),
+) -> None:
+    """Exporta datos de desarrollo a embedded.json para el laboratorio HTML.
+
+    Solo exporta datos hasta dev_end (nunca datos del test 2023+).
+    """
+    from btcx.lab.export import export_cmd
+
+    export_cmd(asset=asset, output=Path(output))
+
+
+# ── validate ───────────────────────────────────────────────────────────────────
+
+
+@validate_app.command("run")
+def validate_run(
+    config: str | None = typer.Option(None, "--config", help="YAML de experimento adicional."),
+    asset: list[str] = typer.Option([], "--asset", help="Activo (repite para varios)."),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Lista folds y tamaños sin entrenar."),
+    artifacts: str = typer.Option("artifacts", "--artifacts", help="Directorio de artefactos."),
+    notes: str = typer.Option("", "--notes", help="Nota para el registro."),
+    smoke: bool = typer.Option(
+        False, "--smoke", help="Marca la ejecución como 'smoke' (no cuenta intento)."
+    ),
+) -> None:
+    """Ejecuta validación CPCV y walk-forward sobre una configuración.
+
+    Con --dry-run solo lista folds y tamaños sin entrenar.
+    """
+    import pandas as pd
+
+    from btcx.assets.registry import load_asset as reg_load_asset
+    from btcx.core.types import AssetData
+    from btcx.data.access import load_asset
+    from btcx.validation.runner import evaluate_config
+
+    overrides = [Path(config)] if config else []
+    settings = load_settings(*overrides)
+
+    # Prioridad: --asset > experiment.assets > data.universe
+    asset_ids = (
+        list(asset)
+        if asset
+        else (settings.experiment.assets or settings.data.universe)
+    )
+
+    # Cargar datos de los activos
+    asset_data: dict[str, AssetData] = {}
+    for aid in asset_ids:
+        typer.echo(f"→ Cargando {aid}…")
+        try:
+            spec = reg_load_asset(aid, settings)
+            af = load_asset(settings, aid)
+            md = AssetData.from_frame(af, settings.costs.fin_spread_annual)
+            asset_data[aid] = md
+        except Exception as exc:  # noqa: BLE001
+            typer.echo(f"  ✗ {aid}: {exc}", err=True)
+            raise typer.Exit(1) from exc
+
+    if dry_run:
+        typer.echo("\n=== Dry-run: folds y tamaños ===")
+        evaluate_config(settings, asset_data, dry_run=True)
+        return
+
+    typer.echo("\n=== Ejecutando validación ===")
+    artifacts_dir = Path(artifacts)
+    results = evaluate_config(
+        settings,
+        asset_data,
+        dry_run=False,
+        artifacts_dir=artifacts_dir,
+        notes=("smoke" if smoke else notes),
+    )
+
+    # Resumen
+    import numpy as np
+
+    for aid, ce in results.items():
+        cpcv_sharpes = [o.metrics.get("sharpe", 0.0) for o in ce.cpcv]
+        wf_sharpes = [o.metrics.get("sharpe", 0.0) for o in ce.walkforward]
+        typer.echo(f"\n{aid}:")
+        typer.echo(
+            f"  CPCV  ({len(ce.cpcv):2d} folds)  Sharpe OOS: {np.mean(cpcv_sharpes):.3f}"
+            if cpcv_sharpes
+            else "  CPCV: sin resultados"
+        )
+        typer.echo(
+            f"  WF    ({len(ce.walkforward):2d} folds)  Sharpe OOS: {np.mean(wf_sharpes):.3f}"
+            if wf_sharpes
+            else "  Walk-forward: sin resultados"
+        )
+        if len(ce.sharpe_paths):
+            typer.echo(f"  Trayectorias CPCV Sharpe: {ce.sharpe_paths}")
+
+    # Guardar en registro (smoke = counts_as_attempt = 0)
+    if not smoke:
+        from btcx.registry.experiments import ExperimentsRegistry
+        import uuid, datetime
+
+        reg = ExperimentsRegistry(Path("registry/experiments.csv"))
+        for aid, ce in results.items():
+            all_folds = ce.cpcv + ce.walkforward
+            for outcome in all_folds:
+                m = outcome.metrics
+                reg.append(
+                    {
+                        "run_id": str(uuid.uuid4())[:8],
+                        "asset_ids": aid,
+                        "config_hash": ce.config_hash,
+                        "config_path": config or "",
+                        "source": "python",
+                        "preregistered": False,
+                        "counts_as_attempt": 0,
+                        "kind": outcome.fold.kind,
+                        "fold_id": outcome.fold.fold_id,
+                        "sharpe": m.get("sharpe", ""),
+                        "sharpe_bench": m.get("sharpe_bench", ""),
+                        "sortino": m.get("sortino", ""),
+                        "cagr": m.get("cagr", ""),
+                        "max_dd": m.get("max_dd", ""),
+                        "notes": notes,
+                    }
+                )
+
+
+# ── registry ───────────────────────────────────────────────────────────────────
+
+
+@registry_app.command("import-lab")
+def registry_import_lab(
+    file: str = typer.Argument(..., help="Archivo JSON con resultados del lab budget."),
+    registry_path: str = typer.Option(
+        "registry/experiments.csv", "--registry", help="Ruta al registro CSV."
+    ),
+) -> None:
+    """Importa resultados del laboratorio al registro con source=lab, counts_as_attempt=0."""
+    import json
+    import uuid
+
+    from btcx.registry.experiments import ExperimentsRegistry
+
+    input_path = Path(file)
+    if not input_path.exists():
+        typer.echo(f"Error: archivo no encontrado: {input_path}", err=True)
+        raise typer.Exit(1) from None
+
+    try:
+        data = json.loads(input_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        typer.echo(f"Error al parsear JSON: {e}", err=True)
+        raise typer.Exit(1) from None
+
+    # Soporta lista de registros o un único registro
+    if isinstance(data, list):
+        records = data
+    elif isinstance(data, dict):
+        records = [data]
+    else:
+        typer.echo("Error: el JSON debe ser un objeto o lista de objetos.", err=True)
+        raise typer.Exit(1) from None
+
+    reg = ExperimentsRegistry(Path(registry_path))
+    imported = 0
+    for record in records:
+        row = {
+            "run_id": record.get("run_id", str(uuid.uuid4())[:8]),
+            "asset_ids": record.get("asset_ids", record.get("asset", "")),
+            "config_hash": record.get("config_hash", ""),
+            "config_path": record.get("config_path", ""),
+            "source": "lab",
+            "preregistered": record.get("preregistered", False),
+            "counts_as_attempt": 0,
+            "kind": record.get("kind", "lab"),
+            "fold_id": record.get("fold_id", ""),
+            "sharpe": record.get("sharpe", ""),
+            "sharpe_bench": record.get("sharpe_bench", ""),
+            "sortino": record.get("sortino", ""),
+            "cagr": record.get("cagr", ""),
+            "max_dd": record.get("max_dd", ""),
+            "notes": record.get("notes", "lab-import"),
+        }
+        reg.append(row)
+        imported += 1
+
+    typer.echo(f"  Importados {imported} registros de lab en {registry_path}")
+
+
+# ── decide ─────────────────────────────────────────────────────────────────────
+
+
+@decide_app.command("run-all")
+def decide_run_all(
+    manifest: str = typer.Option(
+        "config/prereg/BTC-v1/manifest.yaml", "--manifest", help="Ruta al manifest."
+    ),
+    dry_run: bool = typer.Option(False, "--dry-run", help="Lista configs sin entrenar."),
+    artifacts: str = typer.Option("artifacts", "--artifacts", help="Directorio de artefactos."),
+    registry_path: str = typer.Option(
+        "registry/experiments.csv", "--registry", help="Ruta al registro CSV."
+    ),
+) -> None:
+    """Evalúa todas las configs del manifest (Fase 3: Decisión)."""
+    from btcx.decision.orchestrator import load_manifest
+
+    manifest_path = Path(manifest)
+    if not manifest_path.exists():
+        typer.echo(f"Error: manifest no encontrado: {manifest_path}", err=True)
+        raise typer.Exit(1) from None
+
+    m = load_manifest(manifest_path)
+    typer.echo(f"Manifest: {m.project} | activo: {m.asset} | tag: {m.tag}")
+    typer.echo(f"Configs: {len(m.configs)} | presupuesto: {m.budget}")
+
+    if dry_run:
+        typer.echo("\n=== Dry-run: listado de configs ===")
+        for item in m.configs:
+            settings = load_settings(Path(item.path))
+            verified_hash = settings.config_hash()
+            status = "OK" if verified_hash == item.config_hash else f"HASH MISMATCH (esperado={item.config_hash}, calculado={verified_hash})"
+            typer.echo(f"  {item.id}: {item.path} | hash={item.config_hash} [{status}]")
+        return
+
+    import pandas as pd
+
+    from btcx.assets.registry import load_asset as reg_load_asset
+    from btcx.core.types import AssetData
+    from btcx.data.access import load_asset
+    from btcx.decision.orchestrator import run_all
+
+    # Cargar datos del activo
+    base_settings = load_settings(base=Path(m.base_config))
+    asset_ids = [m.asset] if m.asset else base_settings.data.universe
+    asset_data: dict[str, AssetData] = {}
+    for aid in asset_ids:
+        typer.echo(f"→ Cargando {aid}…")
+        spec = reg_load_asset(aid, base_settings)
+        af = load_asset(base_settings, aid)
+        asset_data[aid] = AssetData.from_frame(af, base_settings.costs.fin_spread_annual)
+
+    typer.echo(f"\n=== Ejecutando suite ({len(m.configs)} configs, budget={m.budget}) ===")
+    decision_inputs = run_all(
+        manifest_path=manifest_path,
+        asset_data=asset_data,
+        registry_path=Path(registry_path),
+        artifacts_dir=Path(artifacts),
+        check_tag=False,
+    )
+
+    typer.echo(f"\n✓ Suite completada. Configs evaluadas: {len(decision_inputs.evaluations)}")
+    for cid, ce in decision_inputs.evaluations.items():
+        cpcv_sharpes = [o.metrics.get("sharpe", 0.0) for o in ce.cpcv]
+        import numpy as np
+        typer.echo(f"  {cid}: CPCV Sharpe OOS = {np.mean(cpcv_sharpes):.3f}" if cpcv_sharpes else f"  {cid}: sin resultados CPCV")
+
+
+@decide_app.command("run-addendum")
+def decide_run_addendum(
+    addendum: str = typer.Argument(..., help="Ruta al YAML del addendum."),
+    manifest: str = typer.Option(
+        "config/prereg/BTC-v1/manifest.yaml", "--manifest", help="Ruta al manifest."
+    ),
+) -> None:
+    """Evalúa una config adicional (addendum) con justificación pre-commiteada."""
+    addendum_path = Path(addendum)
+    if not addendum_path.exists():
+        typer.echo(f"Error: addendum no encontrado: {addendum_path}", err=True)
+        raise typer.Exit(1) from None
+    typer.echo(f"Addendum: {addendum_path}")
+    typer.echo("Verificando justificación commiteada...")
+    typer.echo("(Implementación completa en Plan 13)")
+
+
+@decide_app.command("report")
+def decide_report(
+    manifest: str = typer.Option(
+        "config/prereg/BTC-v1/manifest.yaml", "--manifest", help="Ruta al manifest."
+    ),
+    output: str = typer.Option(
+        "reports/fase3/BTC-v1", "--output", help="Directorio de salida del reporte."
+    ),
+) -> None:
+    """Genera DECISION.md y decision.json para el manifest dado."""
+    from btcx.decision.orchestrator import load_manifest
+
+    manifest_path = Path(manifest)
+    if not manifest_path.exists():
+        typer.echo(f"Error: manifest no encontrado: {manifest_path}", err=True)
+        raise typer.Exit(1) from None
+
+    m = load_manifest(manifest_path)
+    typer.echo(f"Generando reporte para {m.project}...")
+    typer.echo(f"Salida: {output}")
+    typer.echo("(Implementación completa de report en Plan 13)")
+
+
+# ── test ───────────────────────────────────────────────────────────────────────
+
+
+@test_app.command("open")
+def test_open(
+    asset: str = typer.Option(..., "--asset", help="ID del activo."),
+    track: str = typer.Option("a", "--track", help="Track a evaluar: a o b."),
+    decision_dir: str = typer.Option(
+        "reports/fase3/BTC-v1", "--decision-dir", help="Directorio con decision.json."
+    ),
+    models_dir: str = typer.Option(
+        "models/frozen", "--models-dir", help="Directorio de modelos congelados."
+    ),
+    registry_path: str = typer.Option(
+        "registry/test_unlock.json", "--unlock-registry", help="Registro de apertura de test."
+    ),
+) -> None:
+    """Verifica precondiciones y abre el periodo de test para un activo/track."""
+    import json
+    import subprocess
+
+    from btcx.constants import UNLOCK_ENV
+
+    # 1. Verificar decision.json GO
+    decision_path = Path(decision_dir) / "decision.json"
+    if not decision_path.exists():
+        typer.echo(f"FALLO: no existe decision.json en {decision_dir}", err=True)
+        raise typer.Exit(1) from None
+
+    decision = json.loads(decision_path.read_text(encoding="utf-8"))
+    if decision.get("decision") != "GO":
+        typer.echo(f"FALLO: decision.json no es GO (es: {decision.get('decision')})", err=True)
+        raise typer.Exit(1) from None
+
+    # 2. Modelo congelado existe
+    model_dir = Path(models_dir) / asset
+    if not model_dir.exists():
+        typer.echo(f"FALLO: modelo congelado no encontrado en {model_dir}", err=True)
+        raise typer.Exit(1) from None
+
+    # 3. UNLOCK_TEST=1 activo
+    if os.environ.get(UNLOCK_ENV) != "1":
+        typer.echo(f"FALLO: {UNLOCK_ENV}=1 no está activo.", err=True)
+        raise typer.Exit(1) from None
+
+    # 4. árbol git limpio
+    result = subprocess.run(
+        ["git", "status", "--porcelain"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0 or result.stdout.strip():
+        typer.echo("FALLO: el árbol git no está limpio.", err=True)
+        raise typer.Exit(1) from None
+
+    # 5. Verificar que no está ya abierto
+    unlock_path = Path(registry_path)
+    unlock_data: dict = {}
+    if unlock_path.exists():
+        unlock_data = json.loads(unlock_path.read_text(encoding="utf-8"))
+
+    key = f"{asset}/track_{track}"
+    if unlock_data.get(key, {}).get("opened_at") is not None:
+        typer.echo(f"FALLO: {key} ya está abierto (opened_at={unlock_data[key]['opened_at']})", err=True)
+        raise typer.Exit(1) from None
+
+    # Todo OK: escribir apertura
+    import datetime
+
+    sha_result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        capture_output=True, text=True,
+    )
+    git_sha = sha_result.stdout.strip() if sha_result.returncode == 0 else "unknown"
+
+    unlock_data[key] = {
+        "opened_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "git_sha": git_sha,
+        "config_hash": decision.get("config_hash", ""),
+        "asset": asset,
+        "track": track,
+    }
+    unlock_path.parent.mkdir(parents=True, exist_ok=True)
+    unlock_path.write_text(json.dumps(unlock_data, indent=2), encoding="utf-8")
+
+    typer.echo(f"OK: periodo de test abierto para {key}")
+    typer.echo(f"git_sha: {git_sha}")
+    typer.echo(f"Escrito en: {unlock_path}")
+    typer.echo("\nACCION REQUERIDA: haz un commit manual con el test_unlock.json actualizado.")
+
+
+@test_app.command("evaluate")
+def test_evaluate(
+    asset: str = typer.Option(..., "--asset", help="ID del activo."),
+    track: str = typer.Option("a", "--track", help="Track a evaluar: a o b."),
+    output: str = typer.Option(
+        "reports/fase4", "--output", help="Directorio de salida."
+    ),
+) -> None:
+    """Evalúa el periodo de test y genera TEST.md."""
+    typer.echo(f"Evaluando test para {asset} (track {track})...")
+    typer.echo("(Implementación completa en Plan 14)")
+
+
+# ── trackb ─────────────────────────────────────────────────────────────────────
+
+
+@trackb_app.command("evaluate")
+def trackb_evaluate(
+    asset: str = typer.Option(..., "--asset", help="ID del activo."),
+    manifest: str = typer.Option(
+        "config/prereg/BTC-v1/manifest.yaml", "--manifest", help="Ruta al manifest."
+    ),
+    output: str = typer.Option(
+        "reports/fase4/trackb", "--output", help="Directorio de salida."
+    ),
+) -> None:
+    """Evalúa Track B para un activo dado el manifest."""
+    typer.echo(f"Evaluando Track B para {asset}...")
+    typer.echo("(Implementación completa en Plan 14)")
+
+
+# ── paper ──────────────────────────────────────────────────────────────────────
+
+
+@paper_app.command("step")
+def paper_step(
+    catch_up: bool = typer.Option(False, "--catch-up", help="Relanzar días pendientes."),
+    strategies: str = typer.Option(
+        "live/strategies.yaml", "--strategies", help="YAML de estrategias."
+    ),
+    as_of: str = typer.Option(
+        None, "--as-of", help="Fecha de cierre (YYYY-MM-DD). Por defecto: ayer."
+    ),
+) -> None:
+    """Ejecuta el paso diario de paper trading."""
+    import datetime
+
+    from btcx.live.paper import run_catchup, step, LiveStore
+    from btcx.live.ledger import Ledger
+
+    strategies_path = Path(strategies)
+    if not strategies_path.exists():
+        typer.echo(f"strategies.yaml no encontrado: {strategies_path}", err=True)
+        raise typer.Exit(1)
+
+    # Determinar fecha
+    if as_of:
+        try:
+            as_of_date = datetime.date.fromisoformat(as_of)
+        except ValueError:
+            typer.echo(f"Fecha inválida: {as_of}. Usa YYYY-MM-DD.", err=True)
+            raise typer.Exit(1) from None
+    else:
+        as_of_date = datetime.date.today() - datetime.timedelta(days=1)
+
+    live_root = Path("live")
+    canonical_data_dir = Path("data/processed/assets")
+
+    if catch_up:
+        typer.echo(f"Relanzando días pendientes hasta {as_of_date}...")
+        # Usar un inicio razonable (hace 30 días) para el catch-up
+        start_date = as_of_date - datetime.timedelta(days=30)
+        results = run_catchup(
+            strategies_yaml=strategies_path,
+            as_of_start=start_date,
+            as_of_end=as_of_date,
+            live_root=live_root,
+            canonical_data_dir=canonical_data_dir,
+        )
+        processed = sum(1 for r in results if not r.skipped and not r.skipped_data)
+        skipped = sum(1 for r in results if r.skipped)
+        typer.echo(f"Catch-up: {processed} procesados, {skipped} omitidos (ya existían).")
+    else:
+        typer.echo(f"Procesando día {as_of_date}...")
+        import yaml
+        config = yaml.safe_load(strategies_path.read_text(encoding="utf-8"))
+        from btcx.decision.final_model import load_frozen_strategy
+
+        for strat_cfg in config.get("strategies", []):
+            if not strat_cfg.get("enabled", True):
+                continue
+            strategy_id = strat_cfg["id"]
+            spec_path = Path(strat_cfg["spec"])
+            if not spec_path.exists():
+                typer.echo(f"spec no encontrado: {spec_path}", err=True)
+                continue
+            try:
+                spec = load_frozen_strategy(spec_path.parent)
+            except Exception as exc:
+                typer.echo(f"Error cargando {strategy_id}: {exc}", err=True)
+                continue
+
+            strat_dir = live_root / strategy_id
+            strat_dir.mkdir(parents=True, exist_ok=True)
+            ledger = Ledger(strat_dir / "ledger.csv")
+            store = LiveStore(
+                strategy_id=strategy_id,
+                ledger=ledger,
+                state_path=strat_dir / "state.json",
+            )
+            result = step(
+                as_of=as_of_date,
+                spec=spec,
+                store=store,
+                live_data_dir=live_root / "data",
+                canonical_data_dir=canonical_data_dir / spec.asset,
+            )
+            if result.skipped:
+                typer.echo(f"  {strategy_id}: ya procesado ({as_of_date}).")
+            elif result.skipped_data:
+                typer.echo(f"  {strategy_id}: sin datos para {as_of_date}.", err=True)
+            else:
+                typer.echo(f"  {strategy_id}: OK (R={result.row.R:.4%})")
+
+
+@paper_app.command("monitor")
+def paper_monitor(
+    alerts_to_issues: bool = typer.Option(
+        False, "--alerts-to-issues", help="Publicar alertas como GitHub Issues."
+    ),
+    strategies: str = typer.Option(
+        "live/strategies.yaml", "--strategies", help="YAML de estrategias."
+    ),
+) -> None:
+    """Monitoriza el paper trading y genera reportes semanales."""
+    import yaml
+
+    from btcx.live.ledger import Ledger
+    from btcx.live.monitor import check_alerts, generate_weekly_report
+
+    strategies_path = Path(strategies)
+    if not strategies_path.exists():
+        typer.echo(f"strategies.yaml no encontrado: {strategies_path}", err=True)
+        raise typer.Exit(1)
+
+    config = yaml.safe_load(strategies_path.read_text(encoding="utf-8"))
+    live_root = Path("live")
+    reports_dir = live_root / "reports"
+
+    for strat_cfg in config.get("strategies", []):
+        if not strat_cfg.get("enabled", True):
+            continue
+        strategy_id = strat_cfg["id"]
+        strat_dir = live_root / strategy_id
+        ledger = Ledger(strat_dir / "ledger.csv")
+        df_ledger = ledger.load()
+
+        alerts = check_alerts(df_ledger, {}, strategy_id)
+        report_path = generate_weekly_report(
+            strategy_id=strategy_id,
+            ledger=df_ledger,
+            bands={},
+            alerts=alerts,
+            output_dir=reports_dir,
+        )
+        typer.echo(f"  {strategy_id}: reporte en {report_path}")
+
+        if alerts:
+            typer.echo(f"  {strategy_id}: {len(alerts)} alertas activas.")
+            for a in alerts:
+                typer.echo(f"    [{a.severity.upper()}] {a.alert_type}: {a.message}")
+
+        if alerts_to_issues and alerts:
+            typer.echo(f"  {strategy_id}: publicación de issues en GitHub (requiere gh CLI).")

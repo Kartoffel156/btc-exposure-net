@@ -14,7 +14,10 @@ import ast
 from pathlib import Path
 
 SRC_ROOT = Path(__file__).parents[3] / "src" / "btcx"
-WHITELIST = {"training/fold_data.py"}
+WHITELIST = {
+    "training/fold_data.py",   # desfase r[t+1] intencional y documentado (Plan 07)
+    "training/batching.py",    # breaks+1 es aritmética de índices de array, no desfase temporal
+}
 
 
 def _relative(path: Path) -> str:

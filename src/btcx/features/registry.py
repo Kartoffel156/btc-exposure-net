@@ -41,6 +41,17 @@ REGISTRY: Final[tuple[FeatureSpec, ...]] = (
     FeatureSpec("range_z", "core", 1, False, ("high", "low"), "log((high - low) / close)"),
     FeatureSpec("skew_60", "core", 60, False, (), "Asimetría móvil de r a 60 días"),
     FeatureSpec("vol_of_vol", "core", 120, False, (), "std_60(log σ_hl20)"),
+    # --- Bloque extended (features complementarias sin datos extra) ---
+    FeatureSpec("ret_90", "extended", 90, False, (), "Retorno log a 90 días"),
+    FeatureSpec("kurt_60", "extended", 60, False, (), "Curtosis móvil de r a 60 días"),
+    FeatureSpec("autocorr_5", "extended", 65, False, (), "Autocorrelación lag-5 de r en ventana 60d"),
+    FeatureSpec("dist_ma50", "extended", 50, False, (), "log(P / SMA_50)"),
+    # --- Bloque derivs (features 14-18, Plan 16) ---
+    FeatureSpec("funding_z", "derivs", 180 + 9, False, ("aux:funding",), "z-score de funding_3d"),
+    FeatureSpec("funding_ext", "derivs", 180, False, ("aux:funding",), "1 si funding > p90 propio pasado"),
+    FeatureSpec("basis_ann_z", "derivs", 180, False, ("aux:basis",), "z-score de basis anualizada"),
+    FeatureSpec("oi_change_z", "derivs", 180 + 7, False, ("aux:open_interest",), "z-score de log(OI_t/OI_{t-7})"),
+    FeatureSpec("oi_vs_price_z", "derivs", 180 + 7, False, ("aux:open_interest",), "z-score de log(OI_t/OI_{t-7}) - log(P_t/P_{t-7})"),
 )
 
 

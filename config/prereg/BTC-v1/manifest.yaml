@@ -1,0 +1,96 @@
+project: BTC-v1
+asset: BTC
+tag: preregistro-v1
+budget: 30
+base_config: config/base.yaml
+configs:
+- id: P01
+  path: config/prereg/BTC-v1/configs/P01.yaml
+  config_hash: bdfa0d545b79308c
+  arch: M0
+  objective: sharpe
+  blocks:
+  - core
+- id: P02
+  path: config/prereg/BTC-v1/configs/P02.yaml
+  config_hash: 2ce23e7c45f6575c
+  arch: M0
+  objective: sharpe
+  blocks:
+  - core
+  - extended
+- id: P03
+  path: config/prereg/BTC-v1/configs/P03.yaml
+  config_hash: 43fdf3ca1b3cbb08
+  arch: M0
+  objective: log_growth_dd
+  blocks:
+  - core
+- id: P04
+  path: config/prereg/BTC-v1/configs/P04.yaml
+  config_hash: 23d7043c40254a20
+  arch: M0
+  objective: log_growth_dd
+  blocks:
+  - core
+  - extended
+- id: P05
+  path: config/prereg/BTC-v1/configs/P05.yaml
+  config_hash: bcd6aa132b7089e2
+  arch: M1
+  objective: sharpe
+  blocks:
+  - core
+- id: P06
+  path: config/prereg/BTC-v1/configs/P06.yaml
+  config_hash: 9be8a92c3a04040c
+  arch: M1
+  objective: sharpe
+  blocks:
+  - core
+  - extended
+- id: P07
+  path: config/prereg/BTC-v1/configs/P07.yaml
+  config_hash: c14989fafd45419e
+  arch: M1
+  objective: log_growth_dd
+  blocks:
+  - core
+- id: P08
+  path: config/prereg/BTC-v1/configs/P08.yaml
+  config_hash: bfdda3b97da18491
+  arch: M1
+  objective: log_growth_dd
+  blocks:
+  - core
+  - extended
+- id: P09
+  path: config/prereg/BTC-v1/configs/P09.yaml
+  config_hash: 73acb0cc8a711182
+  arch: M2
+  objective: sharpe
+  blocks:
+  - core
+- id: P10
+  path: config/prereg/BTC-v1/configs/P10.yaml
+  config_hash: f8bd51052ad87aeb
+  arch: M2
+  objective: sharpe
+  blocks:
+  - core
+  - extended
+- id: P11
+  path: config/prereg/BTC-v1/configs/P11.yaml
+  config_hash: 78534554827bd8f7
+  arch: M2
+  objective: log_growth_dd
+  blocks:
+  - core
+- id: P12
+  path: config/prereg/BTC-v1/configs/P12.yaml
+  config_hash: 689d6541a63ecc42
+  arch: M2
+  objective: log_growth_dd
+  blocks:
+  - core
+  - extended

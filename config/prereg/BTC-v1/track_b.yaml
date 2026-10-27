@@ -1,0 +1,21 @@
+# Configuración Track B para BTC-v1
+# Parámetros de escalado y criterios de evaluación
+
+asset: BTC
+strategy_basis: ganador_fase3  # config_id o LEVEL3
+
+scaling:
+  kelly_mode: "off"
+  hard_cap: 2.0
+  kelly_frac: 0.25
+  mu_haircut: 0.5
+
+evaluation:
+  period: "2019-2022"  # walk-forward Track B
+  bh_vol_match: true   # escalar B&H a misma vol realizada que Track B
+
+criteria:
+  e: sharpe_B_gt_sharpe_bh_scaled   # e: Sharpe(B) > Sharpe(BH escalado)
+  f: mdd_B_lt_070_mdd_bh            # f: |MDD_B| < 0.7 * |MDD_BH|
+  g: max_proximity_lt_050           # g: max(proximity) < 0.50
+  t9: stress_fin_spread_plus10pct   # T9: stress con fin_spread +10% y gap -40%

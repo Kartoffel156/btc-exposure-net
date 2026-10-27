@@ -34,7 +34,7 @@ def _active(
     return name in available_set and spec is not None and spec.block in blocks
 
 
-def compute_fold_independent(  # noqa: PLR0912
+def compute_fold_independent(
     md: AssetData,
     blocks: tuple[str, ...],
     available_names: tuple[str, ...],
@@ -42,7 +42,8 @@ def compute_fold_independent(  # noqa: PLR0912
     """Calcula features que no dependen de parámetros del fold.
 
     Incluye: ret_1, ret_7, ret_30, vol_ratio, downside_vol, dd_365,
-    vol_z, dist_ma200, range_z, skew_60, vol_of_vol.
+    vol_z, dist_ma200, range_z, skew_60, vol_of_vol,
+    ret_90, kurt_60, autocorr_5, dist_ma50.
 
     Args:
         md: Datos del activo.
@@ -132,6 +133,27 @@ def compute_fold_independent(  # noqa: PLR0912
         sigma_20 = ewma_vol(r, halflife=20, min_periods=20)
         log_sigma_20: pd.Series = np.log(sigma_20.where(sigma_20 > 0, other=np.nan))
         result["vol_of_vol"] = log_sigma_20.rolling(60, min_periods=60).std(ddof=1)
+
+    # --- Bloque extended ---
+
+    # ret_90: retorno log a 90 días
+    if _active("ret_90", available_set, specs_by_name, blocks):
+        result["ret_90"] = np.log(close / close.shift(90))  # type: ignore[assignment]
+
+    # kurt_60: curtosis móvil de r a 60 días
+    if _active("kurt_60", available_set, specs_by_name, blocks):
+        result["kurt_60"] = r.rolling(60, min_periods=60).kurt()
+
+    # autocorr_5: autocorrelación lag-5 de r en ventana de 60 días
+    if _active("autocorr_5", available_set, specs_by_name, blocks):
+        result["autocorr_5"] = r.rolling(60, min_periods=60).apply(
+            lambda x: pd.Series(x).autocorr(lag=5), raw=False,
+        )
+
+    # dist_ma50: log(P / SMA_50)
+    if _active("dist_ma50", available_set, specs_by_name, blocks):
+        sma50 = close.rolling(50, min_periods=50).mean()
+        result["dist_ma50"] = np.log(close / sma50.where(sma50 > 0, other=np.nan))  # type: ignore[assignment]
 
     return pd.DataFrame(result, index=close.index)
 

@@ -1,0 +1,11 @@
+features:
+  blocks:
+  - core
+model:
+  activation: tanh
+  arch: M2
+  residual_form: bench_mult
+training:
+  dd_lim: 0.35
+  lambda_dd: 10.0
+  objective: log_growth_dd

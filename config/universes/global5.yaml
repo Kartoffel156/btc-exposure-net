@@ -1,0 +1,12 @@
+id: GLOBAL5
+assets: [BTC, ETH, GLD, SPY, IEF]
+rate: USD_TBILL_3M
+weights:
+  method: inverse_vol
+correlation:
+  returns: weekly
+  halflife_weeks: 52
+idm_bounds: [1.0, 2.5]
+portfolio_vol_target: train_median
+per_asset_overrides:
+  IEF: {w_min: 0.0}

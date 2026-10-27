@@ -1,0 +1,7 @@
+project: BTC-derivs-v1
+asset: BTC
+tag: preregistro-derivs-v1
+budget: 15
+budget_derivs: 15
+base_config: config/prereg/BTC-v1/base.yaml
+configs: []  # se completará con las configs de derivados

@@ -105,6 +105,89 @@ class ScalingCfg(_Frozen):
         raise ValueError("k_search debe ser una lista o tupla de exactamente 2 floats")
 
 
+class ModelCfg(_Frozen):
+    """Configuración de arquitectura y forma residual. Ver pre-plan §8."""
+
+    arch: Literal["M0", "M1", "M2", "M3"] = "M1"
+    activation: Literal["tanh", "relu", "gelu"] = "tanh"
+    residual_form: Literal["bench_mult", "preplan_eps", "additive"] = "bench_mult"
+    a: float = 0.5
+    b_additive: float = 0.3
+    eps: float = 0.2
+    softclip_beta: float = 50.0
+
+
+class TrainingCfg(_Frozen):
+    """Configuración del entrenamiento. Ver pre-plan §8."""
+
+    objective: Literal["sharpe", "sortino", "mean_variance", "log_growth_dd"] = "sharpe"
+    lambda_turn: float = 0.5
+    lambda_dev: float = 0.1
+    lambda_l2: float = 1.0e-4
+    gamma_mv: float = 5.0
+    dd_lim: float = 0.35
+    lambda_dd: float = 10.0
+    dd_kappa: float = 100.0
+    window: int = 365
+    batch: int = 8
+    lr: float = 1.0e-3
+    max_steps: int = 2000
+    eval_every: int = 25
+    patience_steps: int = 300
+    grad_clip: float = 1.0
+    n_seeds: int = 10
+    internal_val_days: int = 365
+    internal_val_gap: int = 30
+    torch_threads: int = 1
+
+
+class ExperimentCfg(_Frozen):
+    """Configuración del experimento: activos y modo de agrupación."""
+
+    assets: list[str] = []  # vacío = usar data.universe
+    pooling: Literal["single", "pooled"] = "single"
+
+
+class EvolutionCfg(_Frozen):
+    """Configuración de neuroevolución. Ver Plan 08."""
+
+    population: int = 200
+    elite_frac: float = 0.10
+    sigma0: float = 0.10
+    sigma_decay: float = 0.99
+    generations: int = 200
+    fitness: Literal["sharpe", "calmar", "ulcer", "max_dd", "log_growth_dd"] = "sharpe"
+    windows_per_generation: int = 8
+    window: int = 365
+
+
+class StatsCfg(_Frozen):
+    """Configuración del módulo de estadística de sobreajuste. Ver Plan 11."""
+
+    bootstrap_mean_block: int = 20
+    bootstrap_n: int = 5000
+    bootstrap_chunk: int = 500
+    ci_level: float = 0.90
+    pbo_groups: int = 16
+    pbo_threshold: float = 0.30
+    dsr_threshold: float = 0.90
+
+
+class ValidationCfg(_Frozen):
+    """Configuración del módulo de validación. Ver Plan 10."""
+
+    cpcv_blocks: int = 6
+    cpcv_test_blocks: int = 2
+    purge_days: int = 1
+    embargo_days: int = 30
+    embargo_sensitivity: list[int] = [30, 90]
+    walkforward_years: list[int] = [2019, 2020, 2021, 2022]
+    walkforward_gap_days: int = 30
+    n_jobs: int = -1
+    budget_total: int = 30
+    budget_derivs: int = 15
+
+
 class Settings(_Frozen):
     project: ProjectCfg
     periods: PeriodsCfg
@@ -133,11 +216,12 @@ class Settings(_Frozen):
         warmup_days=400,
         forbidden=["calendar", "full_sample_stats", "news", "sentiment"],
     )
-    model: dict[str, Any] = {}
-    training: dict[str, Any] = {}
-    evolution: dict[str, Any] = {}
-    validation: dict[str, Any] = {}
-    stats: dict[str, Any] = {}
+    model: ModelCfg = ModelCfg()
+    training: TrainingCfg = TrainingCfg()
+    evolution: EvolutionCfg = EvolutionCfg()
+    experiment: ExperimentCfg = ExperimentCfg()
+    validation: ValidationCfg = ValidationCfg()
+    stats: StatsCfg = StatsCfg()
 
     def config_hash(self) -> str:
         """SHA256 del JSON canónico: identifica una configuración en el registro."""

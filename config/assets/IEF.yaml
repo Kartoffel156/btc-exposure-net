@@ -1,0 +1,25 @@
+id: IEF
+name: iShares 7-10 Year Treasury Bond ETF
+asset_class: etf
+quote_currency: USD
+rate: USD_TBILL_3M
+calendar: business
+
+periods:
+  history_start: "2002-07-01"
+  dev_start: "2015-01-01"
+  dev_end: "2022-12-31"
+  test_start: "2023-01-01"
+
+sources:
+  - adapter: etf_daily
+    params: {symbol: IEF}
+
+columns: [open, high, low, close, volume]
+outlier_abs_return: 0.20
+trade_bps: 5.0
+leverage:
+  instrument: ETF_spot
+  maintenance_margin: 0.25
+  max_leverage: 1.0
+aux: {}

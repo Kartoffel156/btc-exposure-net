@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>btcx lab — Laboratorio visual</title>
+  <!--INJECT_CSS-->
+</head>
+<body>
+  <header id="header">
+    <div id="header-left">
+      <h1>btcx <span class="lab-badge">lab</span></h1>
+    </div>
+    <div id="controls-bar">
+      <label for="asset-select">Activo</label>
+      <select id="asset-select"></select>
+
+      <div class="control-separator"></div>
+
+      <label for="loss-select">Loss</label>
+      <select id="loss-select">
+        <option value="sharpe">Sharpe</option>
+        <option value="sortino">Sortino</option>
+        <option value="log_growth_dd">LogGrowth+DD</option>
+        <option value="mv">Mean-Variance</option>
+      </select>
+
+      <label for="lr-select">LR</label>
+      <select id="lr-select">
+        <option value="0.003">3e-3</option>
+        <option value="0.001" selected>1e-3</option>
+        <option value="0.0003">3e-4</option>
+        <option value="0.0001">1e-4</option>
+      </select>
+
+      <label for="speed-range">Vel</label>
+      <input type="range" id="speed-range" min="1" max="50" value="10" />
+      <span id="speed-label">10</span>
+
+      <div class="control-separator"></div>
+
+      <button id="btn-start">Start</button>
+      <button id="btn-stop" disabled>Stop</button>
+      <button id="btn-reset">Reset</button>
+      <button id="btn-export">Export</button>
+    </div>
+    <div id="header-right">
+      <div id="live-metrics">
+        <span id="live-step" class="live-chip">Step 0</span>
+        <span id="live-loss" class="live-chip">Loss --</span>
+      </div>
+    </div>
+  </header>
+
+  <main id="panels">
+    <!-- Row 1: large charts -->
+    <div id="panel-b" class="panel"></div>
+    <div id="panel-h" class="panel"></div>
+
+    <!-- Row 2: secondary charts -->
+    <div id="panel-c" class="panel"></div>
+    <div id="panel-e" class="panel"></div>
+
+    <!-- Sidebar -->
+    <div id="panel-f" class="panel"></div>
+    <div id="panel-a" class="panel"></div>
+    <div id="panel-g" class="panel"></div>
+  </main>
+  <!--INJECT_JS-->
+</body>
+</html>

@@ -292,3 +292,114 @@ def test_syn_feature_pipeline(syn_env):
         f"vol_z no debería estar en unavailable para SYN (tiene volume). "
         f"unavailable={fm.unavailable}"
     )
+
+
+@pytest.mark.integration
+def test_syn_validate_dry_run(syn_env):
+    """btcx validate run --asset SYN --dry-run lista folds sin entrenar."""
+    import numpy as np
+
+    from btcx.assets.registry import load_asset as reg_load
+    from btcx.core.types import AssetData
+    from btcx.data.access import load_asset
+    from btcx.validation.runner import evaluate_config
+
+    settings, processed = syn_env
+    _build_syn(settings, processed)
+
+    spec = reg_load("SYN", settings)
+    af = load_asset(settings, "SYN", processed_root=str(processed))
+    md = AssetData.from_frame(af, settings.costs.fin_spread_annual)
+
+    asset_data = {"SYN": md}
+    result = evaluate_config(settings, asset_data, dry_run=True)
+
+    # dry_run devuelve dict vacío
+    assert result == {}
+
+
+@pytest.mark.integration
+def test_syn_validate_dry_run_single_and_pooled(syn_env, capsys):
+    """make_folds funciona en modo single y pooled con dos activos SYN."""
+    from btcx.core.types import AssetData
+    from btcx.data.access import load_asset
+    from btcx.validation.folds import make_folds
+
+    settings, processed = syn_env
+    _build_syn(settings, processed)
+
+    af = load_asset(settings, "SYN", processed_root=str(processed))
+    md = AssetData.from_frame(af, settings.costs.fin_spread_annual)
+
+    # Single: dos activos independientes con el mismo AssetData
+    asset_data = {"SYN": md, "SYN2": md}
+    folds_single = make_folds(settings, asset_data)
+    assert "SYN" in folds_single
+    assert "SYN2" in folds_single
+    assert len(folds_single["SYN"]) == 19  # 15 CPCV + 4 wf
+
+    # Pooled: sobreescribir modo en settings
+    import copy
+    from btcx.config import load_settings
+
+    settings_pooled = load_settings()
+    # Parchear experiment.pooling
+    raw = settings_pooled.model_dump(mode="json")
+    raw["experiment"]["pooling"] = "pooled"
+    from pydantic import TypeAdapter
+    from btcx.config import Settings
+
+    settings_p = Settings.model_validate(raw)
+    folds_pooled = make_folds(settings_p, asset_data)
+    assert "pooled" in folds_pooled
+    assert len(folds_pooled["pooled"]) == 19
+
+
+@pytest.mark.integration
+def test_syn_test_open_fails_without_go(syn_env, tmp_path):
+    """btcx test open falla si no hay decision.json GO."""
+    from typer.testing import CliRunner
+    from btcx.cli import app
+
+    runner = CliRunner()
+
+    # No hay decision.json en tmp_path → debe fallar
+    result = runner.invoke(app, [
+        "test", "open",
+        "--asset", "SYN",
+        "--decision-dir", str(tmp_path / "no_decision"),
+        "--models-dir", str(tmp_path / "models"),
+        "--unlock-registry", str(tmp_path / "unlock.json"),
+    ])
+    assert result.exit_code != 0
+    assert "decision.json" in result.output.lower() or "fallo" in result.output.lower()
+
+
+@pytest.mark.integration
+def test_syn_freeze_and_load_strategy(syn_env, tmp_path):
+    """freeze_strategy + load_frozen_strategy roundtrip con datos SYN."""
+    from btcx.decision.final_model import FrozenStrategy, freeze_strategy, load_frozen_strategy
+
+    strategy = FrozenStrategy(
+        strategy_id="SYN-test",
+        base="P01",
+        asset="SYN",
+        model_dir=tmp_path / "models" / "frozen" / "SYN" / "P01",
+        track="A",
+        scaler_params={"k": 1.0, "mu_hat": 0.0, "kelly_mode": "off", "hard_cap": 2.0},
+        bench_params={"sigma_target": "train_median"},
+        costs={"fin_spread_annual": 0.05},
+        data_hash_train="syn_test_hash",
+        git_sha="testsha",
+    )
+
+    output_dir = tmp_path / "frozen_output"
+    freeze_strategy(strategy, output_dir)
+
+    loaded = load_frozen_strategy(output_dir)
+
+    # Verificar que los campos necesarios se preservan
+    assert loaded.strategy_id == "SYN-test"
+    assert loaded.asset == "SYN"
+    assert loaded.scaler_params["hard_cap"] == 2.0
+    assert loaded.data_hash_train == "syn_test_hash"

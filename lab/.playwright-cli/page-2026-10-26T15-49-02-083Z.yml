@@ -1,0 +1,11 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "btcx lab" [level=1] [ref=e3]
+    - generic [ref=e4]:
+      - generic [ref=e5]: "Activo:"
+      - combobox "Activo:" [ref=e6] [cursor=pointer]:
+        - option "BTC" [selected]
+      - button "Start" [disabled] [ref=e7]
+      - button "Stop" [ref=e8] [cursor=pointer]
+      - button "Export" [ref=e9] [cursor=pointer]
+  - main [ref=e10]

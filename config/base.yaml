@@ -48,6 +48,14 @@ asset_classes:
       instrument: spot_margin
       maintenance_margin: 0.10
       max_leverage: 2.0
+  commodity:
+    calendar: business
+    outlier_abs_return: 0.20
+    trade_bps: 5.0
+    leverage:
+      instrument: ETF_spot
+      maintenance_margin: 0.25
+      max_leverage: 1.0
 
 exposure:
   w_min: 0.20
@@ -94,5 +102,22 @@ features:
 model: {}
 training: {}
 evolution: {}
-validation: {}
-stats: {}
+validation:
+  cpcv_blocks: 6
+  cpcv_test_blocks: 2
+  purge_days: 1
+  embargo_days: 30
+  embargo_sensitivity: [30, 90]
+  walkforward_years: [2019, 2020, 2021, 2022]
+  walkforward_gap_days: 30
+  n_jobs: 5
+  budget_total: 30
+  budget_derivs: 15
+stats:
+  bootstrap_mean_block: 20
+  bootstrap_n: 5000
+  bootstrap_chunk: 500
+  ci_level: 0.90
+  pbo_groups: 16
+  pbo_threshold: 0.30
+  dsr_threshold: 0.90

@@ -1,0 +1,7 @@
+[      36ms] [LOG] TF.js backend: webgl @ http://localhost:8765/index.html:53273
+[  138567ms] [LOG] TF.js backend: webgl @ http://localhost:8765/index.html:53590
+[  140126ms] [LOG] Training initialized: 4 seeds × 2922 días × 12 features @ http://localhost:8765/index.html:53508
+[ 1035907ms] [LOG] TF.js backend: webgl @ http://localhost:8765/index.html:53749
+[ 1037457ms] [LOG] Training initialized: 4 seeds × 2922 días × 12 features @ http://localhost:8765/index.html:53611
+[ 1512860ms] [LOG] TF.js backend: webgl @ http://localhost:8765/index.html:53751
+[ 1514904ms] [LOG] Training initialized: 4 seeds × 2922 días × 12 features @ http://localhost:8765/index.html:53613

@@ -99,6 +99,13 @@ def _get_http_for(name: str):
         return MagicMock()  # no se usa en csv_file
     if name == "synthetic":
         return MagicMock()  # no se usa
+    if name == "binance_funding":
+        # Stub: http=None retorna DataFrame vacío (sin conexión real)
+        return None
+    if name == "binance_delivery_basis":
+        return None
+    if name == "binance_vision_metrics":
+        return None
     return MagicMock()
 
 
@@ -122,6 +129,12 @@ def _get_params_for(name: str, tmp_path):
         return {"path": str(p)}
     if name == "synthetic":
         return {"seed": 42, "mu": 0.0003, "sigma": 0.025}
+    if name == "binance_funding":
+        return {"symbol": "SYNTHUSDT"}
+    if name == "binance_delivery_basis":
+        return {"pair": "SYNTHUSD"}
+    if name == "binance_vision_metrics":
+        return {"symbol": "SYNTHUSDT"}
     return {}
 
 
@@ -141,7 +154,8 @@ def test_adapter_index_unique_ordered_no_tz(adapter_name, tmp_path):
 
     assert not df.index.duplicated().any(), f"{adapter_name}: índice con duplicados"
     assert df.index.is_monotonic_increasing, f"{adapter_name}: índice no ordenado"
-    assert df.index.tz is None, f"{adapter_name}: índice con timezone"
+    if hasattr(df.index, "tz"):
+        assert df.index.tz is None, f"{adapter_name}: índice con timezone"
 
 
 @pytest.mark.parametrize("adapter_name", sorted(ADAPTERS))

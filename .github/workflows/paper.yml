@@ -1,0 +1,78 @@
+name: Paper Trading — Paso Diario
+
+on:
+  schedule:
+    # 00:20 UTC cada día (los mercados de crypto cierran a medianoche UTC)
+    - cron: "20 0 * * *"
+  workflow_dispatch:
+    inputs:
+      as_of:
+        description: "Fecha de cierre (YYYY-MM-DD). Vacío = ayer."
+        required: false
+        default: ""
+      catch_up:
+        description: "Relanzar todos los días pendientes desde el último."
+        required: false
+        default: "false"
+        type: boolean
+
+jobs:
+  paper-step:
+    name: Paper trading step
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run paper step
+        env:
+          PAPER_ENABLED: ${{ vars.PAPER_ENABLED || 'true' }}
+        run: |
+          if [ "$PAPER_ENABLED" = "false" ]; then
+            echo "Paper trading deshabilitado (PAPER_ENABLED=false). Omitiendo."
+            exit 0
+          fi
+          CATCH_UP_FLAG=""
+          if [ "${{ github.event.inputs.catch_up }}" = "true" ]; then
+            CATCH_UP_FLAG="--catch-up"
+          fi
+          AS_OF_FLAG=""
+          if [ -n "${{ github.event.inputs.as_of }}" ]; then
+            AS_OF_FLAG="--as-of ${{ github.event.inputs.as_of }}"
+          fi
+          uv run btcx paper step \
+            --strategies live/strategies.yaml \
+            $CATCH_UP_FLAG \
+            $AS_OF_FLAG
+
+      - name: Monitor y alertas
+        run: |
+          uv run btcx paper monitor \
+            --strategies live/strategies.yaml \
+            --alerts-to-issues
+
+      - name: Commit libro contable
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add live/
+          if git diff --cached --quiet; then
+            echo "Sin cambios en el ledger. Nada que commitear."
+          else
+            git commit -m "chore(paper): actualización diaria del ledger [skip ci]"
+            git push
+          fi

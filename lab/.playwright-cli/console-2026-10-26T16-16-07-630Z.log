@@ -1,0 +1,3 @@
+[      55ms] [LOG] TF.js backend: webgl @ http://localhost:8765/index.html:53751
+[      58ms] [ERROR] Failed to load resource: the server responded with a status of 404 (File not found) @ http://localhost:8765/favicon.ico:0
+[   13919ms] [LOG] Training initialized: 4 seeds × 2922 días × 12 features @ http://localhost:8765/index.html:53613

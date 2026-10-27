@@ -1,0 +1,7 @@
+# live/strategies.yaml
+# Declaración de estrategias activas para paper trading automatizado (Plan 15).
+strategies:
+  - id: BTC-P05-trackB
+    spec: models/frozen/BTC/P05/strategy.yaml
+    benchmarks: [LEVEL3_trackB, BUY_AND_HOLD]
+    enabled: true
